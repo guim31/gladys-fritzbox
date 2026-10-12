@@ -1,0 +1,28 @@
+[
+  {
+    "source_ip": "192.0.2.1",
+    "source_mac": "98:9b:cb:0a:0b:0c",
+    "source_port": 1900,
+    "headers": "HTTP/1.1 200 OK\r\nLOCATION: http://192.0.2.1:49000/tr64desc.xml\r\nSERVER: fritz.box UPnP/1.0 AVM FRITZ!Box 7590 154.07.29\r\nCACHE-CONTROL: max-age=1800\r\nEXT:\r\nST: urn:dslforum-org:device:InternetGatewayDevice:1\r\nUSN: uuid:739f2409-bccb-40e7-8e6c-989BCB0A0B0C::urn:dslforum-org:device:InternetGatewayDevice:1\r\n\r\n"
+  },
+  {
+    "source_ip": "192.0.2.1",
+    "source_port": 1900,
+    "headers": "HTTP/1.1 200 OK\r\nLOCATION: http://192.0.2.1:49000/tr64desc.xml\r\nSERVER: fritz.box UPnP/1.0 AVM FRITZ!Box 7590 154.07.29\r\nST: urn:dslforum-org:device:InternetGatewayDevice:1\r\n\r\n"
+  },
+  {
+    "source_ip": "192.0.2.34",
+    "source_port": 1900,
+    "headers": "HTTP/1.1 200 OK\r\nLOCATION: http://192.0.2.34:49000/tr64desc.xml\r\nSERVER: fritz.repeater UPnP/1.0 AVM FRITZ!Repeater 1200 225.07.29\r\nST: urn:dslforum-org:device:InternetGatewayDevice:1\r\n\r\n"
+  },
+  {
+    "source_ip": "192.0.2.20",
+    "source_port": 1900,
+    "headers": "HTTP/1.1 200 OK\r\nLOCATION: http://198.51.100.7:49000/tr64desc.xml\r\nST: urn:dslforum-org:device:InternetGatewayDevice:1\r\n\r\n"
+  },
+  {
+    "source_ip": "fe80::1",
+    "source_port": 1900,
+    "headers": "HTTP/1.1 200 OK\r\nLOCATION: http://[fe80::1]:49000/tr64desc.xml\r\n\r\n"
+  }
+]

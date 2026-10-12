@@ -1,67 +1,229 @@
-# Template de démonstration
+# FRITZ!Box
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Connectez votre FRITZ!Box d'AVM à Gladys : état et débits internet, IP externe, Wi-Fi invités que
+vous pouvez allumer et couper depuis Gladys, présence des téléphones et ordinateurs que vous
+choisissez (qui est à la maison) et, si vous le voulez, vos appels téléphoniques comme
+déclencheurs de scène. Tout reste sur votre réseau local : l'intégration parle à la box par
+**TR-064**, l'interface officielle documentée par AVM, et par le moniteur d'appels de la box. Pas
+de cloud, pas de compte MyFRITZ!.
+
+> **Développée sans le matériel : vos retours sont bienvenus.** L'intégration est couverte par des
+> tests automatiques construits sur de vraies réponses de FRITZ!Box (recueillies par la bibliothèque
+> fritzconnection et par Home Assistant), mais elle n'a pas encore tourné face à une vraie box.
+> Racontez-nous sur le forum Gladys comment elle se comporte avec votre modèle.
 
 ## Ce que vous obtenez
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+- **Un appareil FRITZ!Box** :
+
+  | Fonctionnalité         | Type dans Gladys                  | Affiche                                                                     |
+  | ---------------------- | --------------------------------- | --------------------------------------------------------------------------- |
+  | **Internet**           | état d'entrée (On/Off)            | On quand la box est connectée à internet                                    |
+  | **Débit descendant**   | débit, en Mbit/s                  | trafic entrant actuel de la ligne (courbe d'historique)                     |
+  | **Débit montant**      | débit, en Mbit/s                  | trafic sortant actuel                                                       |
+  | **Débits de la ligne** | débit, en Mbit/s (deux fonctions) | débits maximaux descendant et montant de la ligne (synchro DSL…)            |
+  | **IP externe**         | texte                             | adresse IPv4 publique de la box                                             |
+  | **Durée de connexion** | durée, en minutes                 | temps écoulé depuis la dernière (re)connexion                               |
+  | **Wi-Fi invités**      | interrupteur                      | activé/désactivé, pilotable depuis Gladys                                   |
+  | **Reconnecter**        | bouton poussoir                   | une nouvelle connexion internet (nouvelle IP sur la plupart des lignes DSL) |
+
+- **Un appareil par équipement réseau choisi** (téléphone, ordinateur, tablette…), avec une
+  fonctionnalité **Présence** : présent tant que la box le voit connecté, absent après un délai
+  que vous réglez.
+- Un widget de tableau de bord **FRITZ!Box** : débits, état d'internet, Wi-Fi invités avec son
+  bouton, qui est à la maison, et un bouton **Reconnecter internet**.
+- Les déclencheurs de scène **Appel entrant**, **Appel manqué**, **Appel terminé** (avec le numéro et
+  le nom tiré de l'annuaire de la box), **Connexion internet rétablie** et **IP externe changée**.
+- Les actions de scène **Activer le Wi-Fi invités** (pour un temps si vous le voulez, avec son nom et
+  son mot de passe pour un message à vos invités), **Couper le Wi-Fi invités** et **Reconnecter
+  internet**.
+
+## Prérequis
+
+- Gladys Assistant **5.1.0** ou plus récent.
+- Une **FRITZ!Box** sous FRITZ!OS 7 ou plus récent (les box en FRITZ!OS 6.x répondent aussi en TR-064,
+  avec moins de détails), joignable depuis la machine de Gladys. Les FRITZ!Repeater et les box
+  utilisées en répéteur mesh n'ont que le Wi-Fi invités et la présence.
+- Un **utilisateur FRITZ!Box** avec un mot de passe et le droit **Paramètres de la FRITZ!Box**
+  (interface allemande : _FRITZ!Box Einstellungen_). Pour le nom des appelants, aussi le droit
+  **Messages vocaux, fax, FRITZ!App Fon et liste d'appels** (_Sprachnachrichten, Faxnachrichten,
+  FRITZ!App Fon und Anrufliste_).
+- Pendant l'installation, Gladys vous demande d'autoriser la **recherche SSDP de
+  urn:dslforum-org:device:InternetGatewayDevice:1** : elle permet à l'intégration de trouver la box
+  sans son adresse.
 
 ## Configuration
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+### Préparer la FRITZ!Box
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+Ouvrez l'interface de la box (`http://fritz.box`) :
 
-## Actions
+1. **Réseau domestique > Réseau > Paramètres réseau** (_Heimnetz > Netzwerk > Netzwerkeinstellungen_) :
+   cochez **Autoriser l'accès pour des applications** (_Zugriff für Anwendungen zulassen_) et
+   **Transmettre les informations d'état par UPnP** (_Statusinformationen über UPnP übertragen_,
+   nécessaire aux débits actuels). Appliquez.
+2. **Système > Utilisateurs FRITZ!Box** (_System > FRITZ!Box-Benutzer_) : ajoutez un utilisateur
+   pour Gladys, avec un mot de passe et les droits ci-dessus. Un utilisateur dédié vaut mieux que le
+   vôtre : vous pouvez le supprimer à tout moment.
+3. Pour les appels seulement : sur un téléphone branché à la box (analogique, DECT ou IP), composez
+   `#96*5*` pour activer le moniteur d'appels (`#96*4*` le désactive).
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+### Réglages
 
-## Scènes
+Dans **Intégrations → FRITZ!Box → Configuration** :
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+| Réglage                                      | Par défaut | Effet                                                                                         |
+| -------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| **Adresse de la FRITZ!Box**                  | vide       | Vide : la box est cherchée sur le réseau (puis `fritz.box`). Sinon son adresse IP ou son nom. |
+| **Nom d'utilisateur FRITZ!Box**              | —          | L'utilisateur créé ci-dessus.                                                                 |
+| **Mot de passe**                             | —          | Son mot de passe.                                                                             |
+| **Connexion chiffrée (HTTPS)**               | désactivé  | Port 49443 au lieu de 49000. Le certificat de la box n'est pas vérifié.                       |
+| **Intervalle de rafraîchissement**           | 30 s       | Fréquence de lecture de la box (10 s à 5 min).                                                |
+| **Absent après**                             | 3 min      | Durée pendant laquelle un appareil peut manquer à la box avant d'être absent.                 |
+| **Appels téléphoniques (moniteur d'appels)** | désactivé  | Active les déclencheurs d'appels (moniteur d'appels de la box, port 1012).                    |
+| **Langue des noms de fonctionnalités**       | Français   | Noms des fonctionnalités des nouveaux appareils, et langue des messages.                      |
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+Lancez ensuite **Tester la connexion** : elle affiche le modèle de la box, son FRITZ!OS, l'état
+d'internet et le nombre d'appareils connectés, ou vous dit quoi corriger.
 
-## Tableau de bord
+### Ajouter la box et vos appareils
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Ouvrez l'onglet **Découverte** de l'intégration. Il liste la FRITZ!Box et les appareils qui y sont
+connectés à cet instant (la box en connaît bien plus, mais seuls les connectés sont proposés : un
+téléphone apparaît quand il est sur le Wi-Fi). Cliquez sur **Ajouter à Gladys** pour la box et pour
+chaque appareil à suivre. Le bouton **Scanner** relit la liste de la box.
+
+## Appareils
+
+### La FRITZ!Box
+
+- **Internet** est On quand la connexion est établie (_Connected_ pour la box), Off sinon.
+- **Débit descendant** et **Débit montant** sont le trafic actuel de la ligne, en Mbit/s, lu à chaque
+  rafraîchissement. Ils demandent **Transmettre les informations d'état par UPnP** : sans elle, la
+  configuration le signale et les deux fonctionnalités restent vides.
+- **Débit descendant de la ligne** et **Débit montant de la ligne** sont les débits maximaux de la
+  ligne (la synchronisation DSL, ou les débits du contrat câble ou fibre).
+- **IP externe** est l'adresse IPv4 publique. Derrière un CGNAT (certains fournisseurs fibre et
+  câble, DS-Lite), c'est une adresse du fournisseur, injoignable depuis internet.
+- **Durée de connexion** compte les minutes depuis la dernière connexion (elle repart de zéro à
+  chaque reconnexion : la déconnexion nocturne de nombreuses lignes DSL allemandes s'y voit).
+- **Wi-Fi invités** active ou coupe l'accès invités de la box (le dernier réseau Wi-Fi de la box,
+  comme le fait Home Assistant). Configurez-le une fois dans la box (**Wi-Fi > Accès invités**, nom et
+  mot de passe).
+- **Reconnecter** coupe la connexion internet ; la box se reconnecte aussitôt. En DSL (PPPoE), le
+  fournisseur donne en général une nouvelle IP ; en câble ou en fibre, l'adresse reste souvent la
+  même. Internet est coupé quelques secondes.
+
+Seuls les changements sont publiés, et chaque valeur de nouveau toutes les 12 heures, pour qu'une
+valeur stable n'affiche jamais « Pas de valeur récente ».
+
+### Appareils réseau (présence)
+
+Chaque appareil ajouté a une fonctionnalité **Présence** : présent (1) dès que la box le liste comme
+connecté, absent (0) une fois qu'il a manqué pendant le délai **Absent après**. Les téléphones en
+veille Wi-Fi quittent la liste quelques minutes : gardez 3 à 10 minutes pour eux. Un ordinateur
+branché en câble est vu tout de suite.
+
+Pour marquer une personne à la maison, utilisez la présence de son téléphone dans une scène :
+**Changement d'état de l'appareil** sur **Présence** → **Utilisateur vu à la maison**, avec
+**Exécuter seulement lorsque le seuil est passé** coché (l'état est renvoyé toutes les 12 heures).
+
+## Widget du tableau de bord
+
+**Éditer le tableau de bord → ajouter un widget → FRITZ!Box**. Le widget affiche les débits
+descendant et montant actuels (tuiles en direct une fois la box ajoutée à Gladys), combien
+d'appareils suivis sont à la maison, l'état d'internet avec la durée de connexion, le Wi-Fi invités
+(avec le temps restant quand il a été activé pour un temps) et chaque appareil suivi (présent ou
+absent). **Appareils affichés** choisit lesquels (vide : tous, 8 au plus à côté des lignes internet
+et Wi-Fi invités). Deux boutons : **Activer / Couper Wi-Fi invités** et **Reconnecter internet**
+(qui demande une confirmation). Le widget n'affiche jamais l'IP publique ni d'adresse MAC : un
+tableau de bord peut être montré à des visiteurs.
+
+## Déclencheurs de scène
+
+| Déclencheur                     | Quand                                                                                   | Variables                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Appel entrant**               | le téléphone sonne                                                                      | **Numéro de téléphone**, **Nom (annuaire)**, **Votre numéro**     |
+| **Appel manqué**                | un appel entrant s'est terminé sans que personne ne décroche (ou le répondeur l'a pris) | les mêmes, plus **Secondes de sonnerie** et **Répondeur** (1/0)   |
+| **Appel terminé**               | un appel décroché s'est terminé, entrant ou sortant                                     | les mêmes, plus **Sens** (`incoming`/`outgoing`) et **Durée** (s) |
+| **Connexion internet rétablie** | la box est de nouveau connectée après une coupure                                       | **Coupure (secondes)**, **IP externe**                            |
+| **IP externe changée**          | l'adresse IPv4 publique a changé                                                        | **Nouvelle IP**, **IP précédente**                                |
+
+Les déclencheurs d'appels demandent le réglage **Appels téléphoniques** et le moniteur d'appels de
+la box (`#96*5*`). Ils peuvent se limiter à un appelant (**Numéro de l'appelant**) ou à l'un de vos
+numéros (**Votre numéro**), écrits comme la box les affiche (la liste d'appels de la box montre le
+format). Le nom vient des annuaires de la box ; un numéro inconnu donne le numéro lui-même, un
+numéro masqué donne « Numéro masqué » (dans la langue de la configuration).
+
+Pour « internet est coupé », utilisez le déclencheur du cœur **Changement d'état de l'appareil** sur
+la fonctionnalité **Internet**, valeur Off, case du seuil cochée. Un message envoyé à ce moment-là
+risque de ne pas sortir de la maison : envoyez-le au retour de la connexion, avec **Connexion
+internet rétablie** et la durée de la coupure.
+
+## Actions de scène
+
+- **Activer le Wi-Fi invités** : **Couper après (minutes)** facultatif (vide ou 0 : reste activé,
+  1440 au plus). L'intégration le coupe à la fin, même après un redémarrage. Résultats : **Nom du
+  Wi-Fi invités** et **Mot de passe du Wi-Fi invités**, à envoyer à vos invités dans un message.
+  L'activer ou le couper à la main annule la minuterie.
+- **Couper le Wi-Fi invités**.
+- **Reconnecter internet** : avec **Attendre la reconnexion**, les étapes suivantes démarrent quand
+  la box est reconnectée, ou après 100 secondes (Gladys accorde 120 secondes au plus à une action).
+  Résultats : **Connectée** (1/0), **IP externe** et **Nouvelle IP** (1/0).
+
+Les résultats sont des nombres (1/0) pour que **Condition sur variables** puisse les comparer :
+choisissez le résultat, **=**, et tapez `1`.
+
+## Exemples de scènes
+
+1. **Des invités arrivent** : **Déclenchement programmé** le samedi à 19:00 → **Activer le Wi-Fi
+   invités** pendant 300 minutes → **Envoyer un message** « Wi-Fi invités : [nom], mot de passe
+   [mot de passe] » (insérez les deux résultats depuis la liste des variables).
+2. **Plus personne à la maison** : **Changement d'état de l'appareil** sur la **Présence** de chaque
+   téléphone, valeur Pas de présence, seuil coché → **Vérifier la présence** → éteindre les lumières,
+   baisser le chauffage.
+3. **Appel manqué** : **Appel manqué** → **Envoyer un message** « Appel manqué de [nom] ([numéro de
+   téléphone]) ».
+4. **Bilan de coupure** : **Connexion internet rétablie** → **Envoyer un message** « Internet a été
+   coupé pendant [coupure] secondes ».
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **« La FRITZ!Box refuse les applications »** : cochez **Autoriser l'accès pour des applications**
+  dans **Réseau domestique > Réseau > Paramètres réseau**.
+- **« La FRITZ!Box a refusé le nom ou le mot de passe »** : vérifiez l'utilisateur et son mot de passe
+  dans **Système > Utilisateurs FRITZ!Box**. Après un refus, l'intégration attend 15 minutes avant de
+  réessayer (la box bloque les connexions de plus en plus longtemps après des échecs), ou jusqu'à ce
+  que vous changiez la configuration.
+- **« L'utilisateur de la FRITZ!Box n'a pas le droit Paramètres de la FRITZ!Box »** : donnez-lui ce
+  droit ; sans lui, le Wi-Fi invités et la liste des appareils ne peuvent pas être lus.
+- **« Débits actuels indisponibles »** : cochez **Transmettre les informations d'état par UPnP**.
+- **« Aucune FRITZ!Box trouvée »** ou **« ne répond pas »** : saisissez l'adresse IP de la box (souvent
+  `192.168.178.1`) dans **Adresse de la FRITZ!Box**. La recherche réseau demande l'accès SSDP accepté
+  à l'installation, et ne traverse ni routeur ni VLAN.
+- **« Le moniteur d'appels est désactivé »** : composez `#96*5*` sur un téléphone branché à la box.
+- **Un téléphone apparaît absent alors qu'il est là** : il dort en Wi-Fi ; montez **Absent après** à
+  10 ou 15 minutes. Les téléphones récents utilisent une **adresse Wi-Fi privée** : elle reste la même
+  pour un réseau donné (iOS « Fixe », Android « MAC aléatoire » par réseau), mais une adresse
+  « Rotative » crée un nouvel appareil tous les quelques jours : choisissez une adresse fixe pour le
+  Wi-Fi de la maison.
+- **Le Wi-Fi invités ne fait rien** : configurez une fois l'accès invités dans la box (**Wi-Fi > Accès
+  invités**).
+
+## Limites
+
+- **Développée sans le matériel** : voir plus haut.
+- Une FRITZ!Box par installation de l'intégration. Les FRITZ!Repeater d'un réseau mesh ne sont pas
+  lus (les appareils qu'ils servent apparaissent tout de même dans la liste de la box).
+- **FRITZ!SmartHome** (prises et thermostats DECT) n'est pas couvert : ce sera une autre intégration.
+- Les débits actuels viennent de l'état UPnP de la box, relu à l'intervalle choisi : c'est un
+  instantané, pas une moyenne.
+- IPv4 externe seulement ; le préfixe IPv6 n'est pas affiché.
+- La présence d'un appareil est ce que la box en sait : un téléphone au Wi-Fi coupé, ou connecté à un
+  autre réseau, est absent.
+- Ce que l'intégration enregistre, dans `/data/state.json` de son conteneur : l'adresse de la box
+  trouvée par la recherche, son numéro de série, la dernière IP externe et la fin d'une minuterie du
+  Wi-Fi invités. Le mot de passe reste dans la configuration de Gladys ; numéros et noms ne sont
+  jamais écrits sur disque ni dans les logs.
+- Rythme des requêtes : chaque rafraîchissement envoie 4 à 6 petites requêtes à la box (toutes les
+  30 s par défaut).

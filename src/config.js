@@ -1,45 +1,73 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
+// Integration configuration: defaults (they mirror the `default` values of the
+// manifest `config_schema`, see test/manifest.test.js) and normalization, so
+// the rest of the code never deals with strings, blanks or `undefined`.
 //
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// Select values are strings in the manifest (stored by Gladys as typed); the
+// normalized config holds numbers, in seconds.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+export const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+// Seconds between two reads of the box. The scheduler runs in the container
+// (devices are published with should_poll: false): each read is 4 to 6 small
+// requests, well within what a FRITZ!Box serves.
+export const POLL_INTERVALS = ['10', '30', '60', '120', '300'];
+
+// Seconds a device may be missing from the box's list before it is shown
+// away. Phones asleep on Wi-Fi drop off for a few minutes; Home Assistant
+// waits 180 s by default too.
+export const OFFLINE_DELAYS = ['0', '60', '180', '300', '600', '900', '1800'];
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  host: '',
+  username: '',
+  password: '',
+  https: false,
+  poll_interval: '30',
+  offline_after: '180',
+  call_monitor: false,
+  language: 'fr',
 };
 
+const pick = (value, allowed, fallback) =>
+  allowed.includes(String(value)) ? Number(value) : Number(fallback);
+const text = (value) => (typeof value === 'string' ? value.trim() : '');
+const bool = (value) => value === true || value === 'true' || value === 1 || value === '1';
+
+/** `http://192.168.178.1:49000/` or `fritz.box` → `192.168.178.1` / `fritz.box`. */
+export function normalizeHost(value) {
+  let host = text(value);
+  if (!host) {
+    return '';
+  }
+  try {
+    if (/^[a-z]+:\/\//i.test(host)) {
+      host = new URL(host).hostname;
+    }
+  } catch {
+    return host;
+  }
+  host = host.replace(/\/.*$/, '');
+  // A bare IPv4 or name with a port: the port is the integration's business.
+  const withPort = host.match(/^([^:[\]]+):\d+$/);
+  return (withPort ? withPort[1] : host).replace(/^\[|\]$/g, '');
+}
+
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * @param {Record<string, unknown>} raw the configuration returned by the SDK
  */
 export function normalizeConfig(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    host: normalizeHost(source.host),
+    username: text(source.username),
+    // Passwords may legitimately start or end with a space.
+    password: typeof source.password === 'string' ? source.password : '',
+    https: bool(source.https),
+    pollInterval: pick(source.poll_interval, POLL_INTERVALS, DEFAULT_CONFIG.poll_interval),
+    offlineAfter: pick(source.offline_after, OFFLINE_DELAYS, DEFAULT_CONFIG.offline_after),
+    callMonitor: bool(source.call_monitor),
+    language: LANGUAGES.includes(source.language) ? source.language : DEFAULT_CONFIG.language,
   };
 }

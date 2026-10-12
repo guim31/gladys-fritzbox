@@ -1,0 +1,60 @@
+{
+  "source": "Output arguments of the TR-064 / UPnP IGD actions, from the Home Assistant fritz test constants (tests/components/fritz/const.py, a FRITZ!Box 7530 AX, Apache-2.0) and the fritzconnection test responses (MIT); serial number and addresses anonymized.",
+  "DeviceInfo1#GetInfo": {
+    "NewManufacturerName": "AVM",
+    "NewManufacturerOUI": "00040E",
+    "NewModelName": "FRITZ!Box 7530 AX",
+    "NewDescription": "FRITZ!Box 7530 AX Release 256.08.00",
+    "NewProductClass": "FRITZ!Box",
+    "NewSerialNumber": "989BCB0A0B0C",
+    "NewSoftwareVersion": "256.08.00",
+    "NewHardwareVersion": "FRITZ!Box 7530 AX",
+    "NewSpecVersion": "1.0",
+    "NewProvisioningCode": "",
+    "NewUpTime": "86446",
+    "NewDeviceLog": ""
+  },
+  "Layer3Forwarding1#GetDefaultConnectionService": {
+    "NewDefaultConnectionService": "1.WANPPPConnection.1"
+  },
+  "WANPPPConnection1#GetInfo": {
+    "NewEnable": "1",
+    "NewConnectionStatus": "Connected",
+    "NewUptime": "57199",
+    "NewUpstreamMaxBitRate": "46531924",
+    "NewDownstreamMaxBitRate": "43430530",
+    "NewExternalIPAddress": "203.0.113.17"
+  },
+  "WANPPPConnection1#GetExternalIPAddress": { "NewExternalIPAddress": "203.0.113.17" },
+  "WANPPPConnection1#ForceTermination": {},
+  "WANCommonInterfaceConfig1#GetCommonLinkProperties": {
+    "NewWANAccessType": "DSL",
+    "NewLayer1UpstreamMaxBitRate": "51805000",
+    "NewLayer1DownstreamMaxBitRate": "318557000",
+    "NewPhysicalLinkStatus": "Up"
+  },
+  "WANCommonIFC1#GetAddonInfos": {
+    "NewByteSendRate": "3438",
+    "NewByteReceiveRate": "67649",
+    "NewTotalBytesSent": "1712232562",
+    "NewTotalBytesReceived": "5221019883"
+  },
+  "WLANConfiguration3#GetInfo": {
+    "NewEnable": "0",
+    "NewStatus": "Disabled",
+    "NewSSID": "FRITZ!Box Gastzugang",
+    "NewBeaconType": "11iandWPA3",
+    "NewStandard": "ax"
+  },
+  "WLANConfiguration3#SetEnable": {},
+  "WLANConfiguration3#GetSecurityKeys": { "NewKeyPassphrase": "guest-1234-5678" },
+  "Hosts1#X_AVM-DE_GetHostListPath": {
+    "NewX_AVM-DE_HostListPath": "/devicehostlist.lua?sid=0123456789abcdef"
+  },
+  "X_AVM-DE_OnTel1#GetPhonebookList": { "NewPhonebookList": "0,1" },
+  "X_AVM-DE_OnTel1#GetPhonebook": {
+    "NewPhonebookName": "Telefonbuch",
+    "NewPhonebookExtraID": "",
+    "NewPhonebookURL": "http://fritz.box:49000/phonebook.lua?sid=0123456789abcdef&pbid=0"
+  }
+}

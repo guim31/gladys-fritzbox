@@ -1,8 +1,8 @@
 {
-  "name": "gladys-integration-template-js",
+  "name": "gladys-fritzbox",
   "version": "1.0.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "AVM FRITZ!Box integration for Gladys Assistant: internet status, guest Wi-Fi, presence and calls, over TR-064.",
   "type": "module",
   "main": "index.js",
   "scripts": {
