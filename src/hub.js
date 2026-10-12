@@ -195,43 +195,30 @@ export class Hub {
     if (this.now() < this.authBlockedUntil) {
       return false;
     }
-    let hosts = config.host ? [config.host] : [];
-    if (!config.host) {
-      if (this.saved.address) {
-        hosts.push(this.saved.address);
-      }
-      const found = await this.searchBoxes();
-      hosts.push(...found.map((candidate) => candidate.address), FALLBACK_HOST);
-      hosts = [...new Set(hosts)];
+    // The address found earlier is tried before searching the network again
+    // (a search takes seconds, and the core allows one every 10 s).
+    const candidates = config.host ? [config.host] : [this.saved.address].filter(Boolean);
+    let { box, error: lastError } = await this.tryHosts(candidates);
+    let hosts = candidates;
+    if (!box && !config.host && (!lastError || lastError.kind === 'unreachable')) {
+      const found = (await this.searchBoxes()).map((candidate) => candidate.address);
+      hosts = [...new Set([...found, FALLBACK_HOST])].filter((host) => !candidates.includes(host));
+      ({ box, error: lastError } = await this.tryHosts(hosts, lastError));
+      hosts = [...candidates, ...hosts];
     }
-    let lastError = null;
-    for (const host of hosts) {
-      const box = new FritzBox({
-        host,
-        https: config.https,
-        username: config.username,
-        password: config.password,
-        request: this.request,
-      });
-      try {
-        await box.connect();
-      } catch (err) {
-        lastError = err;
-        if (err.kind === 'unreachable') {
-          continue;
-        }
-        break;
-      }
+    if (box) {
       if (!box.info.id) {
         box.info.id = this.saved.boxId ?? 'fritzbox';
       }
       this.box = box;
       this.problem = null;
       this.authBlockedUntil = 0;
-      this.warnings.delete('rights');
       this.updateRateWarning();
       if (!config.host || this.saved.boxId !== box.info.id) {
-        await this.save({ address: config.host ? this.saved.address : host, boxId: box.info.id });
+        await this.save({
+          address: config.host ? this.saved.address : box.host,
+          boxId: box.info.id,
+        });
       }
       logger.info(`Connected to ${box.info.model} (FRITZ!OS ${box.info.firmware ?? '?'})`);
       return true;
@@ -243,6 +230,30 @@ export class Hub {
     }
     logger.warn(`Cannot connect to the FRITZ!Box: ${lastError?.message ?? 'no address'}`);
     return false;
+  }
+
+  /** The first host that answers as a FRITZ!Box; stops at an error other than silence. */
+  async tryHosts(hosts, previousError = null) {
+    let error = previousError;
+    for (const host of hosts) {
+      const box = new FritzBox({
+        host,
+        https: this.config.https,
+        username: this.config.username,
+        password: this.config.password,
+        request: this.request,
+      });
+      try {
+        await box.connect();
+        return { box, error: null };
+      } catch (err) {
+        error = err;
+        if (err.kind !== 'unreachable') {
+          break;
+        }
+      }
+    }
+    return { box: null, error };
   }
 
   /** Boxes found by the core's SSDP search ([] when the search is unavailable). */

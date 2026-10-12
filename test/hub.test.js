@@ -253,6 +253,27 @@ test('no address: the box is found by the network search and remembered', async 
   assert.equal(saved.boxId, '989bcb0a0b0c');
 });
 
+test('no address but one found earlier: used at once, no network search', async (t) => {
+  const world = await createWorld({
+    config: { username: USERNAME, password: PASSWORD },
+    saved: { address: '192.0.2.1', boxId: '989bcb0a0b0c' },
+  });
+  t.after(() => world.app.stop());
+  assert.deepEqual(world.fake.connectionStatus, { connected: true });
+  assert.deepEqual(world.fake.scans, []);
+});
+
+test('the address found earlier is gone: searched again', async (t) => {
+  const world = await createWorld({
+    config: { username: USERNAME, password: PASSWORD },
+    saved: { address: '192.0.2.77' },
+  });
+  t.after(() => world.app.stop());
+  assert.deepEqual(world.fake.connectionStatus, { connected: true });
+  assert.equal(world.fake.scans.length, 1);
+  assert.equal(world.hub.box.host, '192.0.2.1');
+});
+
 test('no address and no answer to the search: "not found"', async (t) => {
   const world = await createWorld({ config: { username: USERNAME, password: PASSWORD }, ssdp: [] });
   t.after(() => world.app.stop());
