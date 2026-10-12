@@ -12,44 +12,28 @@ the notes of the version's GitHub Release.
 
 ### Added
 
-- A working example of scene triggers, scene actions and dashboard widgets
-  (Gladys 5.1.0 or later).
-- `CHANGELOG.md`, rolled by the Release workflow.
-- A GitHub Release for every version, with its changelog section as notes: the
-  Gladys Supervision page links each version to the repository's releases.
-- CI runs the tests on Node 22 and 24, and builds the Docker image.
-- Dependabot keeps the npm dependencies and the GitHub Actions up to date.
-- `SECURITY.md` (how to report a vulnerability) and `CLAUDE.md` (project rules
-  for contributors and coding assistants).
-- Manifest tests: `version` matches `package.json`, `docker_image` is tagged
-  with it, descriptions hold 10 to 100 characters, placeholders are
-  multi-language objects.
-- The latitude and longitude fields show an example value as placeholder.
+- A **FRITZ!Box** device: internet connection (on/off), current download and
+  upload rates, maximum rates of the line, external IP, connection time, a
+  **Guest Wi-Fi** switch and a **Reconnect** button (a new IP on most DSL
+  lines), read over TR-064, AVM's local interface. No cloud.
+- **Presence** of the network devices you choose (phones, computers…) in the
+  Discover tab, with a delay before a device is shown away.
+- The box is found on the network (SSDP through Gladys), or reached at the
+  address you enter; **Test the connection** says what the box reports or
+  what to fix (access for applications, user, rights, UPnP status).
+- Optional **call monitor**: scene triggers **Incoming call**, **Missed
+  call** and **Call ended**, with the caller's name from the phone books of
+  the box.
+- Scene triggers **Internet connection restored** (with the length of the
+  outage) and **External IP changed**.
+- Scene actions **Turn on the guest Wi-Fi** (optionally for a number of
+  minutes, with its name and password as results), **Turn off the guest
+  Wi-Fi** and **Reconnect the internet** (can wait until the box is connected
+  again).
+- Dashboard widget **FRITZ!Box**: rates, internet status, guest Wi-Fi with
+  its button, who is home, and a **Reconnect internet** button.
+- Texts and documentation in English, French, German and Spanish; feature
+  names in French by default (setting **Language of the feature names**).
+- Apache-2.0 `LICENSE` file.
 
-### Changed
-
-- Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
-- The refresh interval is one minute minimum, the fastest Gladys polls a
-  device. The plug's power is only sent when it changes, and every 30
-  minutes otherwise.
-
-### Fixed
-
-- Gladys refused the devices of the Discovery tab: the weather station and
-  the plug declared their poll frequency in seconds instead of one of the
-  values Gladys accepts, and were never polled. They now poll every minute,
-  and the readings follow the refresh interval of the configuration.
-
-- The release commit no longer fails `npm run format:check`: the Release
-  workflow updates the manifest `version` and `docker_image` in place instead
-  of re-printing the whole file with `jq`.
-- The integration can write to `/data`: the image creates the directory owned
-  by the `node` user, a new Docker volume was owned by root.
-- A sub-container running the integration's own image follows it to the new
-  tag at each release, as well as in the manifest of the build summary: it kept
-  the previous tag, which may not exist on the registry. Sub-containers on a
-  third-party image (a broker, a database...) keep theirs.
-
-[Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main
+[Unreleased]: https://github.com/guim31/gladys-fritzbox/commits/main

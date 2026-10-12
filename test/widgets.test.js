@@ -1,77 +1,136 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { TEXT, formatDuration } from '../src/widgets.js';
+import { CONFIG, create, createWorld, discovered, discoveredBox } from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+async function world(t, options) {
+  const w = await createWorld(options);
+  t.after(() => w.app.stop());
+  return w;
+}
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
-
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
-
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
-  }
-});
-
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
+test('before the box is added: computed tiles, status, guest and reconnect buttons', async (t) => {
+  const w = await world(t);
+  const content = (await w.fake.widgetGet('fritzbox', { language: 'en' })).data.content;
+  assert.deepEqual(validateWidgetContent(content), []);
+  assert.deepEqual(content.components[0], {
+    type: 'value',
+    label: 'Download',
+    icon: 'arrow-down',
+    value: 0.54,
+    unit: 'Mbit/s',
+  });
+  const status = content.components.find((component) => component.type === 'status');
+  assert.deepEqual(
+    status.items.map((item) => [item.label, item.value]),
+    [
+      ['Internet', 'Connected · 15 h 53 min'],
+      ['Guest Wi-Fi', 'Off'],
+    ],
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
+  const buttons = content.components.filter((component) => component.type === 'button');
+  assert.deepEqual(
+    buttons.map((button) => [button.label, button.action]),
+    [
+      ['Turn on guest Wi-Fi', { key: 'guest_wifi', params: { enable: true } }],
+      ['Reconnect internet', { key: 'reconnect', confirm: true }],
+    ],
+  );
+  assert.ok(!JSON.stringify(content).includes('203.0.113.17'), 'no public IP on a dashboard');
 });
 
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
+test('with the box and two devices: live tiles bound to existing features, who is home', async (t) => {
+  const w = await world(t);
+  const box = await create(w, discoveredBox(w));
+  await create(w, discovered(w, 'MacBook'));
+  await create(w, discovered(w, 'raspberrypi'));
+  const content = (await w.fake.widgetGet('fritzbox', { language: 'fr' })).data.content;
+  assert.deepEqual(validateWidgetContent(content), []);
+  const tiles = content.components.filter((component) => component.type === 'value');
+  const featureIds = new Set(box.features.map((feature) => feature.external_id));
+  assert.ok(featureIds.has(tiles[0].device_feature) && featureIds.has(tiles[1].device_feature));
+  assert.deepEqual(tiles[2], {
+    type: 'value',
+    value: '2 / 2',
+    label: 'À la maison',
+    icon: 'users',
+  });
+  const status = content.components.find((component) => component.type === 'status');
+  assert.deepEqual(
+    status.items.slice(2).map((item) => [item.label, item.value]),
+    [
+      ['MacBook', 'Présent'],
+      ['raspberrypi', 'Présent'],
+    ],
+  );
+  assert.ok(!JSON.stringify(content).match(/02:00:5e/i), 'no MAC address');
 });
 
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
+test('the settings choose the devices shown', async (t) => {
+  const w = await world(t);
+  await create(w, discovered(w, 'MacBook'));
+  const pi = await create(w, discovered(w, 'raspberrypi'));
+  const settings = { devices: [pi.external_id, 'ext:other:x'] };
+  const content = (await w.fake.widgetGet('fritzbox', { settings, language: 'de' })).data.content;
+  const status = content.components.find((component) => component.type === 'status');
+  assert.deepEqual(
+    status.items.slice(2).map((item) => item.label),
+    ['raspberrypi'],
   );
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('the guest button switches it, with a toast; the timer shows the time left', async (t) => {
+  const w = await world(t);
+  const ack = await w.fake.widgetAction('fritzbox', 'guest_wifi', { enable: true });
+  assert.deepEqual(ack.data.message, TEXT.turnedOn);
+  assert.equal(w.box.guestEnabled, true);
+  await w.fake.sceneAction('enable_guest_wifi', { duration_minutes: 120 });
+  w.clock.advance(30 * 60_000);
+  const content = (await w.fake.widgetGet('fritzbox', { language: 'en' })).data.content;
+  const status = content.components.find((component) => component.type === 'status');
+  assert.equal(status.items[1].value, 'On · 1 h 30 min left');
+  const button = content.components.find((component) => component.type === 'button');
+  assert.equal(button.label, 'Turn off guest Wi-Fi');
+  const off = await w.fake.widgetAction('fritzbox', 'guest_wifi', { enable: false });
+  assert.deepEqual(off.data.message, TEXT.turnedOff);
+  assert.equal(w.box.guestEnabled, false);
+});
+
+test('the reconnect button asks first, then reconnects', async (t) => {
+  const w = await world(t);
+  const ack = await w.fake.widgetAction('fritzbox', 'reconnect', {});
+  assert.deepEqual(ack.data.message, TEXT.reconnecting);
+  assert.equal(w.box.connected, false);
+});
+
+test('not connected: one text says so', async (t) => {
+  const w = await world(t, { config: { ...CONFIG, password: 'wrong' } });
+  const content = (await w.fake.widgetGet('fritzbox', { language: 'es' })).data.content;
+  assert.deepEqual(validateWidgetContent(content), []);
+  assert.deepEqual(content.components, [
+    { type: 'text', variant: 'body', text: TEXT.notConnected.es },
+  ]);
+});
+
+test('at most 10 status rows with many devices, within the core budget', async (t) => {
+  const items = Array.from({ length: 12 }, (_, i) => {
+    const hex = (i + 1).toString(16).padStart(2, '0');
+    return `<Item><MACAddress>02:00:5E:10:01:${hex}</MACAddress><IPAddress>192.0.2.${100 + i}</IPAddress><Active>1</Active><HostName>Phone ${i + 1}</HostName></Item>`;
+  });
+  const w = await world(t, { fritz: { hostList: `<List>${items.join('')}</List>` } });
+  for (let i = 1; i <= 12; i += 1) {
+    await create(w, discovered(w, `Phone ${i}`));
+  }
+  const content = (await w.fake.widgetGet('fritzbox')).data.content;
+  assert.deepEqual(validateWidgetContent(content), []);
+  const status = content.components.find((component) => component.type === 'status');
+  assert.equal(status.items.length, 10);
+});
+
+test('durations: two units at most, in the four languages', () => {
+  assert.equal(formatDuration(57199, 'en'), '15 h 53 min');
+  assert.equal(formatDuration(200000, 'fr'), '2 j 7 h');
+  assert.equal(formatDuration(200000, 'de'), '2 T 7 h');
+  assert.equal(formatDuration(59, 'es'), '0 min');
 });

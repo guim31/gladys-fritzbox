@@ -1,61 +1,219 @@
-# Demo Devices Template
+# FRITZ!Box
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Connect your AVM FRITZ!Box to Gladys: internet status and rates, external IP, guest Wi-Fi that you
+can switch from Gladys, presence of the phones and computers you choose (who is home), and, if you
+want, your phone calls as scene triggers. Everything stays on your local network: the integration
+talks to the box through **TR-064**, the official interface documented by AVM, and the call
+monitor of the box. No cloud, no MyFRITZ! account.
+
+> **Developed without the hardware: feedback welcome.** The integration is covered by automated
+> tests built on real answers of FRITZ!Boxes (collected by the fritzconnection library and Home
+> Assistant), but it has not run against a real box yet. Tell us on the Gladys forum how it works
+> with your model.
 
 ## What you get
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+- **A FRITZ!Box device**:
+
+  | Feature             | Type in Gladys                 | Shows                                                     |
+  | ------------------- | ------------------------------ | --------------------------------------------------------- |
+  | **Internet**        | input state (On/Off)           | On when the box is connected to the internet              |
+  | **Download**        | rate, in Mbit/s                | current incoming traffic of the line (history chart)      |
+  | **Upload**          | rate, in Mbit/s                | current outgoing traffic                                  |
+  | **Line rates**      | rate, in Mbit/s (two features) | maximum download and upload rates of the line (DSL sync…) |
+  | **External IP**     | text                           | public IPv4 address of the box                            |
+  | **Connection time** | duration, in minutes           | time since the last (re)connection                        |
+  | **Guest Wi-Fi**     | switch                         | on/off, controllable from Gladys                          |
+  | **Reconnect**       | push button                    | a new internet connection (a new IP on most DSL lines)    |
+
+- **One device per network device you choose** (phone, computer, tablet…), with a **Presence**
+  feature: present while the box sees it connected, away after a delay you set.
+- A dashboard widget **FRITZ!Box**: rates, internet status, guest Wi-Fi with its button, who is
+  home, and a **Reconnect internet** button.
+- Scene triggers **Incoming call**, **Missed call**, **Call ended** (with the number and the name
+  from the phone book of the box), **Internet connection restored** and **External IP changed**.
+- Scene actions **Turn on the guest Wi-Fi** (for a while if you want, with its name and password
+  for a message to your guests), **Turn off the guest Wi-Fi** and **Reconnect the internet**.
+
+## Requirements
+
+- Gladys Assistant **5.1.0** or later.
+- A **FRITZ!Box** with FRITZ!OS 7 or later (FRITZ!OS 6.x boxes answer TR-064 too, with fewer
+  details), reachable from the Gladys machine. FRITZ!Repeaters and boxes used as a mesh repeater
+  only get the guest Wi-Fi and presence features.
+- A **FRITZ!Box user** with a password, and the right **FRITZ!Box Settings** (German interface:
+  _FRITZ!Box Einstellungen_). For the names of the callers, also the right **Voice messages, faxes,
+  FRITZ!App Fon and call list** (_Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste_).
+- During the installation, Gladys asks you to allow the **SSDP search for
+  urn:dslforum-org:device:InternetGatewayDevice:1**: it lets the integration find the box without
+  its address.
 
 ## Configuration
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+### Prepare the FRITZ!Box
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+Open the interface of the box (`http://fritz.box`):
 
-## Actions
+1. **Home Network > Network > Network Settings** (_Heimnetz > Netzwerk > Netzwerkeinstellungen_):
+   tick **Allow access for applications** (_Zugriff für Anwendungen zulassen_) and **Transmit status
+   information over UPnP** (_Statusinformationen über UPnP übertragen_, needed for the current
+   rates). Apply.
+2. **System > FRITZ!Box Users** (_System > FRITZ!Box-Benutzer_): add a user for Gladys, with a
+   password and the rights listed above. A dedicated user is better than your own: you can remove
+   it at any time.
+3. For the phone calls only: on a phone connected to the box (analog, DECT or IP phone), dial
+   `#96*5*` to switch the call monitor on (`#96*4*` switches it off).
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+### Settings
 
-## Scenes
+In **Integrations → FRITZ!Box → Configuration**:
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+| Setting                           | Default | Effect                                                                                       |
+| --------------------------------- | ------- | -------------------------------------------------------------------------------------------- |
+| **Address of the FRITZ!Box**      | empty   | Empty: the box is found on the network (then `fritz.box`). Otherwise its IP address or name. |
+| **FRITZ!Box user name**           | —       | The user created above.                                                                      |
+| **Password**                      | —       | Its password.                                                                                |
+| **Encrypted connection (HTTPS)**  | off     | Port 49443 instead of 49000. The certificate of the box is not checked.                      |
+| **Refresh interval**              | 30 s    | How often the box is read (10 s to 5 min).                                                   |
+| **Away after**                    | 3 min   | How long a device may be missing from the box before it is shown away.                       |
+| **Phone calls (call monitor)**    | off     | Enables the call triggers (call monitor of the box, port 1012).                              |
+| **Language of the feature names** | French  | Names of the features of new devices, and language of the messages.                          |
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+Then run **Test the connection**: it shows the model of the box, its FRITZ!OS, the internet status
+and the number of connected devices, or tells you what to fix.
 
-## Dashboard
+### Add the box and your devices
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+Open the **Discover** tab of the integration. It lists the FRITZ!Box and the devices connected to
+it right now (the box knows many more, but only the connected ones are proposed: a phone appears
+when it is on the Wi-Fi). Click **Add to Gladys** on the box and on each device to follow. The
+**Scan** button reads the list of the box again.
+
+## Devices
+
+### The FRITZ!Box
+
+- **Internet** is On when the connection is established (_Connected_ for the box), Off otherwise.
+- **Download** and **Upload** are the current traffic of the line, in Mbit/s, read at each refresh.
+  They need **Transmit status information over UPnP**: without it, the configuration says so and
+  the two features stay empty.
+- **Line download rate** and **Line upload rate** are the maximum rates of the line (the DSL
+  synchronization, or the rates of the cable or fiber contract).
+- **External IP** is the public IPv4 address. Behind a carrier-grade NAT (some fiber and cable
+  providers, DS-Lite), it is an address of the provider, not reachable from the internet.
+- **Connection time** counts the minutes since the last connection (it restarts at each
+  reconnection: the nightly disconnection of many German DSL lines shows here).
+- **Guest Wi-Fi** switches the guest access of the box (the last Wi-Fi network of the box, as Home
+  Assistant does). Configure it once in the box (**Wi-Fi > Guest Access**, name and password).
+- **Reconnect** ends the internet connection; the box dials again at once. On DSL (PPPoE), the
+  provider usually gives a new IP; on cable or fiber, the address often stays the same. The
+  internet is cut for a few seconds.
+
+Only the changes are published, and every value again every 12 hours, so that a stable value never
+shows "No recent value".
+
+### Network devices (presence)
+
+Each device you added has a **Presence** feature: present (1) as soon as the box lists it as
+connected, away (0) once it has been missing for the **Away after** delay. Phones asleep on Wi-Fi
+leave the list for a few minutes: keep 3 to 10 minutes for them. A computer plugged by cable is
+seen at once.
+
+To mark a person at home, use the presence feature of their phone in a scene: **Device state
+change** on **Presence** → **User seen at home**, with **Execute only when threshold is passed**
+ticked (the state is sent again every 12 hours).
+
+## Dashboard widget
+
+**Edit dashboard → add a widget → FRITZ!Box**. The widget shows the current download and upload
+rates (live tiles once the box is added to Gladys), how many followed devices are home, the
+internet status with the connection time, the guest Wi-Fi (with the time left when it was turned on
+for a while) and each followed device (home or away). **Devices shown** chooses which ones (empty:
+all, 8 at most next to the internet and guest Wi-Fi rows). Two buttons: **Turn on / Turn off guest
+Wi-Fi** and **Reconnect internet** (which asks for a confirmation). The widget never shows the
+public IP nor MAC addresses: a dashboard can be shown to visitors.
+
+## Scene triggers
+
+| Trigger                          | When                                                                               | Variables                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Incoming call**                | the phone rings                                                                    | **Phone number**, **Name (phone book)**, **Your number**                  |
+| **Missed call**                  | an incoming call ended without anyone answering (or the answering machine took it) | the same, plus **Seconds of ringing** and **Answering machine** (1/0)     |
+| **Call ended**                   | an answered call ended, incoming or outgoing                                       | the same, plus **Direction** (`incoming`/`outgoing`) and **Duration** (s) |
+| **Internet connection restored** | the box is connected again after an outage                                         | **Outage (seconds)**, **External IP**                                     |
+| **External IP changed**          | the public IPv4 address changed                                                    | **New IP**, **Previous IP**                                               |
+
+The call triggers need the **Phone calls** setting and the call monitor of the box (`#96*5*`). They
+can be limited to one caller (**Caller number**) or to one of your numbers (**Your number**),
+written as the box shows them (the call list of the box shows the format). The name comes from the
+phone books of the box; an unknown number gives the number itself, a hidden number gives "Hidden
+number" (in the language of the configuration).
+
+For "the internet is down", use the core trigger **Device state change** on the **Internet**
+feature, value Off, with the threshold box ticked. A message sent at that moment may not leave the
+house: send it when the connection is back, with **Internet connection restored** and its outage
+duration.
+
+## Scene actions
+
+- **Turn on the guest Wi-Fi**: optional **Turn off after (minutes)** (empty or 0: stays on, at most
+  1440). The integration switches it off at the end, even after a restart. Results: **Guest Wi-Fi
+  name** and **Guest Wi-Fi password**, to send to your guests in a message. Turning it on or off by
+  hand cancels the timer.
+- **Turn off the guest Wi-Fi**.
+- **Reconnect the internet**: with **Wait until reconnected**, the next steps start once the box is
+  connected again, or after 100 seconds (Gladys gives an action 120 seconds at most). Results:
+  **Connected** (1/0), **External IP** and **New IP** (1/0).
+
+The results are numbers (1/0) so that **Condition on variables** can compare them: pick the result,
+**=**, and type `1`.
+
+## Scene examples
+
+1. **Guests are coming**: **Scheduled trigger** on Saturday at 19:00 → **Turn on the guest Wi-Fi**
+   for 300 minutes → **Send Message** "Guest Wi-Fi: [name], password [password]" (insert the two
+   results from the variable list).
+2. **Nobody home**: **Device state change** on **Presence** of each phone, value No presence,
+   threshold ticked → **Check user presence** → turn the lights off, lower the heating.
+3. **Missed call**: **Missed call** → **Send Message** "Missed call from [name] ([phone number])".
+4. **Outage report**: **Internet connection restored** → **Send Message** "The internet was down
+   for [outage] seconds".
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **"The FRITZ!Box refuses applications"**: tick **Allow access for applications** in **Home
+  Network > Network > Network Settings**.
+- **"The FRITZ!Box refused the user name or password"**: check the user and its password in
+  **System > FRITZ!Box Users**. After a refusal, the integration waits 15 minutes before trying
+  again (the box blocks logins for longer and longer after failures), or until you change the
+  configuration.
+- **"The FRITZ!Box user lacks the FRITZ!Box Settings right"**: give it this right; without it the
+  guest Wi-Fi and the device list cannot be read.
+- **"Current rates unavailable"**: tick **Transmit status information over UPnP**.
+- **"No FRITZ!Box found"** or **"does not answer"**: enter the IP address of the box (often
+  `192.168.178.1`) in **Address of the FRITZ!Box**. The network search needs the SSDP access
+  accepted at the installation, and does not cross routers or VLANs.
+- **"The call monitor is off"**: dial `#96*5*` on a phone connected to the box.
+- **A phone shows away while it is home**: it sleeps on Wi-Fi; raise **Away after** to 10 or 15
+  minutes. Recent phones use a **private Wi-Fi address**: it stays the same for a given network
+  (iOS "Fixed", Android "Use randomized MAC" per network), but a "Rotating" address creates a new
+  device every few days: choose a fixed one for your home Wi-Fi.
+- **The guest Wi-Fi does nothing**: configure the guest access once in the box (**Wi-Fi > Guest
+  Access**).
+
+## Limits
+
+- **Developed without the hardware**: see above.
+- One FRITZ!Box per installation of the integration. The FRITZ!Repeaters of a mesh are not read
+  (the devices they serve appear in the list of the box all the same).
+- **FRITZ!SmartHome** (DECT plugs and thermostats) is not covered: it will be another integration.
+- The current rates come from the UPnP status of the box, refreshed at the chosen interval: they
+  are a snapshot, not an average.
+- External IPv4 only; the IPv6 prefix is not shown.
+- The presence of a device is what the box knows: a phone with Wi-Fi off, or connected to another
+  network, is away.
+- What the integration stores, in `/data/state.json` of its container: the address of the box
+  found by the search, its serial number, the last external IP and the end of a guest Wi-Fi timer.
+  The password stays in the Gladys configuration; phone numbers and names are never written to
+  disk nor to the logs.
+- Rate of requests: each refresh sends 4 to 6 small requests to the box (default every 30 s).

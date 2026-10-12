@@ -1,177 +1,923 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "FRITZ!Box",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Internet status and rates, guest Wi-Fi, who is home and phone calls of your FRITZ!Box.",
+    "fr": "État et débits internet, Wi-Fi invités, présence et appels téléphoniques de votre FRITZ!Box.",
+    "de": "Internetstatus und Datenraten, Gast-WLAN, Anwesenheit und Telefonanrufe deiner FRITZ!Box.",
+    "es": "Estado y velocidad de internet, Wi-Fi de invitados, presencia y llamadas de su FRITZ!Box."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-fritzbox:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-fritzbox/main/cover.png",
+  "categories": ["network"],
+  "transports": ["local"],
+  "network_discovery": [
+    {
+      "type": "ssdp",
+      "st": "urn:dslforum-org:device:InternetGatewayDevice:1"
+    }
+  ],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Connect your FRITZ!Box",
+        "fr": "Connecter votre FRITZ!Box",
+        "de": "Deine FRITZ!Box verbinden",
+        "es": "Conectar su FRITZ!Box"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "In the FRITZ!Box (http://fritz.box): enable \"Allow access for applications\" and \"Transmit status information over UPnP\" in Home Network > Network > Network Settings, and create a user with the \"FRITZ!Box Settings\" right in System > FRITZ!Box Users. Then run \"Test the connection\" and add the box and your devices in the Discover tab.",
+        "fr": "Dans la FRITZ!Box (http://fritz.box), activez « Autoriser l'accès pour des applications » et « Transmettre les informations d'état par UPnP » dans Réseau domestique > Réseau > Paramètres réseau, et créez un utilisateur avec le droit « Paramètres de la FRITZ!Box » dans Système > Utilisateurs FRITZ!Box. Puis lancez « Tester la connexion » et ajoutez la box et vos appareils dans l'onglet Découverte.",
+        "de": "In der FRITZ!Box (http://fritz.box): Aktiviere „Zugriff für Anwendungen zulassen“ und „Statusinformationen über UPnP übertragen“ unter Heimnetz > Netzwerk > Netzwerkeinstellungen und lege unter System > FRITZ!Box-Benutzer einen Benutzer mit dem Recht „FRITZ!Box Einstellungen“ an. Starte dann „Verbindung testen“ und füge die Box und deine Geräte im Tab „Entdecken“ hinzu.",
+        "es": "En la FRITZ!Box (http://fritz.box): active «Permitir el acceso a aplicaciones» y «Transmitir información de estado por UPnP» en Red doméstica > Red > Ajustes de red, y cree un usuario con el permiso «Ajustes de FRITZ!Box» en Sistema > Usuarios de FRITZ!Box. Después, ejecute «Probar la conexión» y añada la box y sus dispositivos en la pestaña Descubrir."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-fritzbox/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "key": "host",
+      "type": "string",
       "required": false,
-      "default": "celsius",
+      "label": {
+        "en": "Address of the FRITZ!Box",
+        "fr": "Adresse de la FRITZ!Box",
+        "de": "Adresse der FRITZ!Box",
+        "es": "Dirección de la FRITZ!Box"
+      },
+      "description": {
+        "en": "Leave empty to find it automatically on the network.",
+        "fr": "Laissez vide pour la trouver automatiquement sur le réseau.",
+        "de": "Leer lassen, um sie automatisch im Netzwerk zu finden.",
+        "es": "Déjelo vacío para encontrarla automáticamente en la red."
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.178.1",
+        "fr": "ex. 192.168.178.1",
+        "de": "z. B. 192.168.178.1",
+        "es": "p. ej. 192.168.178.1"
+      }
+    },
+    {
+      "key": "username",
+      "type": "string",
+      "required": true,
+      "label": {
+        "en": "FRITZ!Box user name",
+        "fr": "Nom d'utilisateur FRITZ!Box",
+        "de": "FRITZ!Box-Benutzername",
+        "es": "Nombre de usuario de FRITZ!Box"
+      },
+      "description": {
+        "en": "A user of System > FRITZ!Box Users, with the \"FRITZ!Box Settings\" right.",
+        "fr": "Un utilisateur de Système > Utilisateurs FRITZ!Box, avec le droit « Paramètres de la FRITZ!Box ».",
+        "de": "Ein Benutzer aus System > FRITZ!Box-Benutzer mit dem Recht „FRITZ!Box Einstellungen“.",
+        "es": "Un usuario de Sistema > Usuarios de FRITZ!Box, con el permiso «Ajustes de FRITZ!Box»."
+      },
+      "placeholder": {
+        "en": "e.g. gladys",
+        "fr": "ex. gladys",
+        "de": "z. B. gladys",
+        "es": "p. ej. gladys"
+      }
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "required": true,
+      "label": {
+        "en": "Password",
+        "fr": "Mot de passe",
+        "de": "Kennwort",
+        "es": "Contraseña"
+      }
+    },
+    {
+      "key": "https",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": {
+        "en": "Encrypted connection (HTTPS)",
+        "fr": "Connexion chiffrée (HTTPS)",
+        "de": "Verschlüsselte Verbindung (HTTPS)",
+        "es": "Conexión cifrada (HTTPS)"
+      },
+      "description": {
+        "en": "Port 49443 instead of 49000. The box's own certificate is not checked.",
+        "fr": "Port 49443 au lieu de 49000. Le certificat de la box n'est pas vérifié.",
+        "de": "Port 49443 statt 49000. Das eigene Zertifikat der Box wird nicht geprüft.",
+        "es": "Puerto 49443 en lugar de 49000. El certificado propio de la box no se comprueba."
+      }
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "required": false,
+      "default": "30",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often the box is read (status, rates, connected devices).",
+        "fr": "Fréquence de lecture de la box (état, débits, appareils connectés).",
+        "de": "Wie oft die Box gelesen wird (Status, Datenraten, verbundene Geräte).",
+        "es": "Con qué frecuencia se lee la box (estado, velocidades, dispositivos conectados)."
+      },
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "10",
+          "label": {
+            "en": "10 seconds",
+            "fr": "10 secondes",
+            "de": "10 Sekunden",
+            "es": "10 segundos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
-      },
+      "key": "offline_after",
+      "type": "select",
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "180",
+      "label": {
+        "en": "Away after",
+        "fr": "Absent après",
+        "de": "Abwesend nach",
+        "es": "Fuera tras"
+      },
+      "description": {
+        "en": "Time a device may be missing from the box before it is shown away. Phones asleep on Wi-Fi drop off for a few minutes.",
+        "fr": "Durée pendant laquelle un appareil peut disparaître de la box avant d'être absent. Les téléphones en veille Wi-Fi disparaissent quelques minutes.",
+        "de": "Zeit, die ein Gerät in der Box fehlen darf, bevor es als abwesend gilt. Handys im WLAN-Ruhezustand verschwinden für einige Minuten.",
+        "es": "Tiempo que un dispositivo puede faltar en la box antes de mostrarse fuera. Los móviles en reposo wifi desaparecen unos minutos."
+      },
+      "options": [
+        {
+          "value": "0",
+          "label": {
+            "en": "At the first missing read",
+            "fr": "À la première lecture absente",
+            "de": "Beim ersten fehlenden Eintrag",
+            "es": "En la primera lectura sin él"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "180",
+          "label": {
+            "en": "3 minutes",
+            "fr": "3 minutes",
+            "de": "3 Minuten",
+            "es": "3 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        },
+        {
+          "value": "600",
+          "label": {
+            "en": "10 minutes",
+            "fr": "10 minutes",
+            "de": "10 Minuten",
+            "es": "10 minutos"
+          }
+        },
+        {
+          "value": "900",
+          "label": {
+            "en": "15 minutes",
+            "fr": "15 minutes",
+            "de": "15 Minuten",
+            "es": "15 minutos"
+          }
+        },
+        {
+          "value": "1800",
+          "label": {
+            "en": "30 minutes",
+            "fr": "30 minutes",
+            "de": "30 Minuten",
+            "es": "30 minutos"
+          }
+        }
+      ]
+    },
+    {
+      "key": "call_monitor",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": {
+        "en": "Phone calls (call monitor)",
+        "fr": "Appels téléphoniques (moniteur d'appels)",
+        "de": "Telefonanrufe (Anrufmonitor)",
+        "es": "Llamadas telefónicas (monitor de llamadas)"
+      },
+      "description": {
+        "en": "Scene triggers for incoming, missed and ended calls. First dial #96*5* on a phone connected to the FRITZ!Box.",
+        "fr": "Déclencheurs de scène pour les appels entrants, manqués et terminés. Composez d'abord #96*5* sur un téléphone branché à la FRITZ!Box.",
+        "de": "Szenen-Auslöser für eingehende, verpasste und beendete Anrufe. Wähle vorher #96*5* an einem Telefon an der FRITZ!Box.",
+        "es": "Activadores de escena para llamadas entrantes, perdidas y finalizadas. Marque antes #96*5* en un teléfono conectado a la FRITZ!Box."
+      }
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "required": false,
+      "default": "fr",
+      "label": {
+        "en": "Language of the feature names",
+        "fr": "Langue des noms de fonctionnalités",
+        "de": "Sprache der Funktionsnamen",
+        "es": "Idioma de los nombres de las funciones"
+      },
+      "description": {
+        "en": "Names given to the features of new devices, and language of the messages.",
+        "fr": "Noms donnés aux fonctionnalités des nouveaux appareils, et langue des messages.",
+        "de": "Namen der Funktionen neuer Geräte und Sprache der Meldungen.",
+        "es": "Nombres de las funciones de los nuevos dispositivos e idioma de los mensajes."
+      },
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "description": {
+        "en": "Connects to the FRITZ!Box, shows what it reports and lists the connected devices in the Discover tab.",
+        "fr": "Se connecte à la FRITZ!Box, affiche ce qu'elle indique et liste les appareils connectés dans l'onglet Découverte.",
+        "de": "Verbindet sich mit der FRITZ!Box, zeigt, was sie meldet, und listet die verbundenen Geräte im Tab „Entdecken“ auf.",
+        "es": "Se conecta a la FRITZ!Box, muestra lo que indica y enumera los dispositivos conectados en la pestaña Descubrir."
+      },
+      "timeout_seconds": 60
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "incoming_call",
+      "label": {
+        "en": "Incoming call",
+        "fr": "Appel entrant",
+        "de": "Eingehender Anruf",
+        "es": "Llamada entrante"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "The phone of the FRITZ!Box rings (call monitor).",
+        "fr": "Le téléphone de la FRITZ!Box sonne (moniteur d'appels).",
+        "de": "Das Telefon der FRITZ!Box klingelt (Anrufmonitor).",
+        "es": "Suena el teléfono de la FRITZ!Box (monitor de llamadas)."
       },
       "fields": [
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "key": "number",
+          "type": "string",
+          "label": {
+            "en": "Caller number (optional)",
+            "fr": "Numéro de l'appelant (facultatif)",
+            "de": "Nummer des Anrufers (optional)",
+            "es": "Número de quien llama (opcional)"
+          },
+          "description": {
+            "en": "Only calls from this number, written as the FRITZ!Box shows it (e.g. 01701234567).",
+            "fr": "Seulement les appels de ce numéro, écrit comme la FRITZ!Box l'affiche (ex. 01701234567).",
+            "de": "Nur Anrufe von dieser Nummer, so geschrieben, wie die FRITZ!Box sie anzeigt (z. B. 01701234567).",
+            "es": "Solo las llamadas de este número, escrito como lo muestra la FRITZ!Box (p. ej. 01701234567)."
+          }
         },
         {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Your number (optional)",
+            "fr": "Votre numéro (facultatif)",
+            "de": "Deine Nummer (optional)",
+            "es": "Su número (opcional)"
+          },
+          "description": {
+            "en": "Only calls to this number of yours, as the FRITZ!Box shows it (e.g. 1234567). Empty: all your numbers.",
+            "fr": "Seulement les appels vers ce numéro, tel que la FRITZ!Box l'affiche (ex. 1234567). Vide : tous vos numéros.",
+            "de": "Nur Anrufe an diese eigene Nummer, wie die FRITZ!Box sie anzeigt (z. B. 1234567). Leer: alle deine Nummern.",
+            "es": "Solo las llamadas a este número suyo, tal como lo muestra la FRITZ!Box (p. ej. 1234567). Vacío: todos sus números."
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "number",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Phone number",
+            "fr": "Numéro de téléphone",
+            "de": "Telefonnummer",
+            "es": "Número de teléfono"
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Name (phone book)",
+            "fr": "Nom (annuaire)",
+            "de": "Name (Telefonbuch)",
+            "es": "Nombre (agenda)"
+          }
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Your number",
+            "fr": "Votre numéro",
+            "de": "Deine Nummer",
+            "es": "Su número"
+          }
+        }
+      ]
+    },
+    {
+      "key": "missed_call",
+      "label": {
+        "en": "Missed call",
+        "fr": "Appel manqué",
+        "de": "Verpasster Anruf",
+        "es": "Llamada perdida"
+      },
+      "description": {
+        "en": "An incoming call ended without anyone answering it (the answering machine may have).",
+        "fr": "Un appel entrant s'est terminé sans que personne ne décroche (le répondeur a pu le prendre).",
+        "de": "Ein eingehender Anruf endete, ohne dass jemand abgenommen hat (vielleicht der Anrufbeantworter).",
+        "es": "Una llamada entrante terminó sin que nadie contestara (quizá el contestador)."
+      },
+      "fields": [
+        {
+          "key": "number",
+          "type": "string",
+          "label": {
+            "en": "Caller number (optional)",
+            "fr": "Numéro de l'appelant (facultatif)",
+            "de": "Nummer des Anrufers (optional)",
+            "es": "Número de quien llama (opcional)"
+          },
+          "description": {
+            "en": "Only calls from this number, written as the FRITZ!Box shows it (e.g. 01701234567).",
+            "fr": "Seulement les appels de ce numéro, écrit comme la FRITZ!Box l'affiche (ex. 01701234567).",
+            "de": "Nur Anrufe von dieser Nummer, so geschrieben, wie die FRITZ!Box sie anzeigt (z. B. 01701234567).",
+            "es": "Solo las llamadas de este número, escrito como lo muestra la FRITZ!Box (p. ej. 01701234567)."
+          }
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Your number (optional)",
+            "fr": "Votre numéro (facultatif)",
+            "de": "Deine Nummer (optional)",
+            "es": "Su número (opcional)"
+          },
+          "description": {
+            "en": "Only calls to this number of yours, as the FRITZ!Box shows it (e.g. 1234567). Empty: all your numbers.",
+            "fr": "Seulement les appels vers ce numéro, tel que la FRITZ!Box l'affiche (ex. 1234567). Vide : tous vos numéros.",
+            "de": "Nur Anrufe an diese eigene Nummer, wie die FRITZ!Box sie anzeigt (z. B. 1234567). Leer: alle deine Nummern.",
+            "es": "Solo las llamadas a este número suyo, tal como lo muestra la FRITZ!Box (p. ej. 1234567). Vacío: todos sus números."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "number",
+          "type": "string",
+          "label": {
+            "en": "Phone number",
+            "fr": "Numéro de téléphone",
+            "de": "Telefonnummer",
+            "es": "Número de teléfono"
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Name (phone book)",
+            "fr": "Nom (annuaire)",
+            "de": "Name (Telefonbuch)",
+            "es": "Nombre (agenda)"
+          }
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Your number",
+            "fr": "Votre numéro",
+            "de": "Deine Nummer",
+            "es": "Su número"
+          }
+        },
+        {
+          "key": "ring_seconds",
+          "type": "number",
+          "label": {
+            "en": "Seconds of ringing",
+            "fr": "Secondes de sonnerie",
+            "de": "Sekunden Klingeln",
+            "es": "Segundos de timbre"
+          }
+        },
+        {
+          "key": "answering_machine",
+          "type": "number",
+          "label": {
+            "en": "Answering machine (1 = yes, 0 = no)",
+            "fr": "Répondeur (1 = oui, 0 = non)",
+            "de": "Anrufbeantworter (1 = ja, 0 = nein)",
+            "es": "Contestador (1 = sí, 0 = no)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "call_ended",
+      "label": {
+        "en": "Call ended",
+        "fr": "Appel terminé",
+        "de": "Anruf beendet",
+        "es": "Llamada finalizada"
+      },
+      "description": {
+        "en": "A call that was answered ended, incoming or outgoing.",
+        "fr": "Un appel décroché s'est terminé, entrant ou sortant.",
+        "de": "Ein angenommener Anruf wurde beendet, eingehend oder ausgehend.",
+        "es": "Una llamada contestada ha terminado, entrante o saliente."
+      },
+      "fields": [
+        {
+          "key": "direction",
+          "type": "select",
+          "label": {
+            "en": "Direction (optional)",
+            "fr": "Sens (facultatif)",
+            "de": "Richtung (optional)",
+            "es": "Sentido (opcional)"
+          },
+          "options": [
+            {
+              "value": "incoming",
+              "label": {
+                "en": "Incoming",
+                "fr": "Entrant",
+                "de": "Eingehend",
+                "es": "Entrante"
+              }
+            },
+            {
+              "value": "outgoing",
+              "label": {
+                "en": "Outgoing",
+                "fr": "Sortant",
+                "de": "Ausgehend",
+                "es": "Saliente"
+              }
+            }
+          ]
+        },
+        {
+          "key": "number",
+          "type": "string",
+          "label": {
+            "en": "Other party's number (optional)",
+            "fr": "Numéro du correspondant (facultatif)",
+            "de": "Nummer des Gesprächspartners (optional)",
+            "es": "Número del interlocutor (opcional)"
+          },
+          "description": {
+            "en": "Only calls with this number, written as the FRITZ!Box shows it.",
+            "fr": "Seulement les appels avec ce numéro, écrit comme la FRITZ!Box l'affiche.",
+            "de": "Nur Anrufe mit dieser Nummer, so geschrieben, wie die FRITZ!Box sie anzeigt.",
+            "es": "Solo las llamadas con este número, escrito como lo muestra la FRITZ!Box."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "number",
+          "type": "string",
+          "label": {
+            "en": "Phone number",
+            "fr": "Numéro de téléphone",
+            "de": "Telefonnummer",
+            "es": "Número de teléfono"
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Name (phone book)",
+            "fr": "Nom (annuaire)",
+            "de": "Name (Telefonbuch)",
+            "es": "Nombre (agenda)"
+          }
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Your number",
+            "fr": "Votre numéro",
+            "de": "Deine Nummer",
+            "es": "Su número"
+          }
+        },
+        {
+          "key": "direction",
+          "type": "string",
+          "label": {
+            "en": "Direction (incoming or outgoing)",
+            "fr": "Sens (incoming ou outgoing)",
+            "de": "Richtung (incoming oder outgoing)",
+            "es": "Sentido (incoming u outgoing)"
+          }
+        },
+        {
+          "key": "duration_seconds",
+          "type": "number",
+          "label": {
+            "en": "Duration (seconds)",
+            "fr": "Durée (secondes)",
+            "de": "Dauer (Sekunden)",
+            "es": "Duración (segundos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "internet_restored",
+      "label": {
+        "en": "Internet connection restored",
+        "fr": "Connexion internet rétablie",
+        "de": "Internetverbindung wiederhergestellt",
+        "es": "Conexión a internet restablecida"
+      },
+      "description": {
+        "en": "The box is connected to the internet again after an outage, with the length of the outage.",
+        "fr": "La box est de nouveau connectée à internet après une coupure, avec la durée de la coupure.",
+        "de": "Die Box ist nach einem Ausfall wieder mit dem Internet verbunden, mit der Dauer des Ausfalls.",
+        "es": "La box vuelve a estar conectada a internet tras un corte, con la duración del corte."
+      },
+      "variables": [
+        {
+          "key": "downtime_seconds",
+          "type": "number",
+          "label": {
+            "en": "Outage (seconds)",
+            "fr": "Coupure (secondes)",
+            "de": "Ausfall (Sekunden)",
+            "es": "Corte (segundos)"
+          }
+        },
+        {
+          "key": "external_ip",
+          "type": "string",
+          "label": {
+            "en": "External IP",
+            "fr": "IP externe",
+            "de": "Externe IP",
+            "es": "IP externa"
+          }
+        }
+      ]
+    },
+    {
+      "key": "external_ip_changed",
+      "label": {
+        "en": "External IP changed",
+        "fr": "IP externe changée",
+        "de": "Externe IP geändert",
+        "es": "IP externa cambiada"
+      },
+      "description": {
+        "en": "The public IPv4 address of the box changed (reconnection, nightly disconnection of the provider).",
+        "fr": "L'adresse IPv4 publique de la box a changé (reconnexion, déconnexion nocturne du fournisseur).",
+        "de": "Die öffentliche IPv4-Adresse der Box hat sich geändert (Neuverbindung, nächtliche Zwangstrennung).",
+        "es": "La dirección IPv4 pública de la box ha cambiado (reconexión, desconexión nocturna del proveedor)."
+      },
+      "variables": [
+        {
+          "key": "ip",
+          "type": "string",
+          "label": {
+            "en": "New IP",
+            "fr": "Nouvelle IP",
+            "de": "Neue IP",
+            "es": "IP nueva"
+          }
+        },
+        {
+          "key": "previous_ip",
+          "type": "string",
+          "label": {
+            "en": "Previous IP",
+            "fr": "IP précédente",
+            "de": "Vorherige IP",
+            "es": "IP anterior"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "enable_guest_wifi",
+      "label": {
+        "en": "Turn on the guest Wi-Fi",
+        "fr": "Activer le Wi-Fi invités",
+        "de": "Gast-WLAN einschalten",
+        "es": "Activar el Wi-Fi de invitados"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Turns the guest Wi-Fi on, for a while if you want, and gives its name and password to the next steps.",
+        "fr": "Active le Wi-Fi invités, pour un temps si vous le voulez, et donne son nom et son mot de passe aux étapes suivantes.",
+        "de": "Schaltet das Gast-WLAN ein, auf Wunsch für eine Weile, und gibt Name und Kennwort an die nächsten Schritte weiter.",
+        "es": "Activa el Wi-Fi de invitados, durante un tiempo si lo desea, y pasa su nombre y contraseña a los pasos siguientes."
+      },
+      "timeout_seconds": 30,
       "fields": [
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "key": "duration_minutes",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "max": 1440,
+          "label": {
+            "en": "Turn off after (minutes)",
+            "fr": "Couper après (minutes)",
+            "de": "Ausschalten nach (Minuten)",
+            "es": "Apagar tras (minutos)"
+          },
+          "description": {
+            "en": "Empty or 0: stays on. At most 1440 (24 hours).",
+            "fr": "Vide ou 0 : reste activé. 1440 au plus (24 heures).",
+            "de": "Leer oder 0: bleibt an. Höchstens 1440 (24 Stunden).",
+            "es": "Vacío o 0: permanece activado. Como máximo 1440 (24 horas)."
+          }
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
+          "key": "ssid",
+          "type": "string",
+          "label": {
+            "en": "Guest Wi-Fi name",
+            "fr": "Nom du Wi-Fi invités",
+            "de": "Name des Gast-WLANs",
+            "es": "Nombre del Wi-Fi de invitados"
+          }
+        },
+        {
+          "key": "password",
+          "type": "string",
+          "label": {
+            "en": "Guest Wi-Fi password",
+            "fr": "Mot de passe du Wi-Fi invités",
+            "de": "Kennwort des Gast-WLANs",
+            "es": "Contraseña del Wi-Fi de invitados"
+          }
+        }
+      ]
+    },
+    {
+      "key": "disable_guest_wifi",
+      "label": {
+        "en": "Turn off the guest Wi-Fi",
+        "fr": "Couper le Wi-Fi invités",
+        "de": "Gast-WLAN ausschalten",
+        "es": "Apagar el Wi-Fi de invitados"
+      },
+      "description": {
+        "en": "Turns the guest Wi-Fi off, and cancels a running timer.",
+        "fr": "Coupe le Wi-Fi invités et annule une minuterie en cours.",
+        "de": "Schaltet das Gast-WLAN aus und bricht einen laufenden Timer ab.",
+        "es": "Apaga el Wi-Fi de invitados y cancela un temporizador en curso."
+      },
+      "timeout_seconds": 30
+    },
+    {
+      "key": "reconnect_internet",
+      "label": {
+        "en": "Reconnect the internet",
+        "fr": "Reconnecter internet",
+        "de": "Internet neu verbinden",
+        "es": "Reconectar internet"
+      },
+      "description": {
+        "en": "Ends the internet connection; the box connects again at once, with a new IP on most DSL lines.",
+        "fr": "Coupe la connexion internet ; la box se reconnecte aussitôt, avec une nouvelle IP sur la plupart des lignes DSL.",
+        "de": "Trennt die Internetverbindung; die Box verbindet sich sofort neu, bei den meisten DSL-Anschlüssen mit neuer IP.",
+        "es": "Corta la conexión a internet; la box se reconecta enseguida, con una IP nueva en la mayoría de líneas DSL."
+      },
+      "timeout_seconds": 120,
+      "fields": [
+        {
+          "key": "wait",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "required": false,
+          "label": {
+            "en": "Wait until reconnected",
+            "fr": "Attendre la reconnexion",
+            "de": "Auf die Neuverbindung warten",
+            "es": "Esperar a la reconexión"
+          },
+          "description": {
+            "en": "The following steps start once the box is connected again, or after 100 seconds.",
+            "fr": "Les étapes suivantes démarrent quand la box est reconnectée, ou après 100 secondes.",
+            "de": "Die nächsten Schritte starten, sobald die Box wieder verbunden ist, oder nach 100 Sekunden.",
+            "es": "Los pasos siguientes empiezan cuando la box vuelve a estar conectada o tras 100 segundos."
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "connected",
+          "type": "number",
+          "label": {
+            "en": "Connected (1 = yes, 0 = no)",
+            "fr": "Connectée (1 = oui, 0 = non)",
+            "de": "Verbunden (1 = ja, 0 = nein)",
+            "es": "Conectada (1 = sí, 0 = no)"
+          }
+        },
+        {
+          "key": "external_ip",
+          "type": "string",
+          "label": {
+            "en": "External IP",
+            "fr": "IP externe",
+            "de": "Externe IP",
+            "es": "IP externa"
+          }
+        },
+        {
+          "key": "ip_changed",
+          "type": "number",
+          "label": {
+            "en": "New IP (1 = yes, 0 = no)",
+            "fr": "Nouvelle IP (1 = oui, 0 = non)",
+            "de": "Neue IP (1 = ja, 0 = nein)",
+            "es": "IP nueva (1 = sí, 0 = no)"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "fritzbox",
+      "label": {
+        "en": "FRITZ!Box",
+        "fr": "FRITZ!Box",
+        "de": "FRITZ!Box",
+        "es": "FRITZ!Box"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Internet status and rates, guest Wi-Fi with its button, and who is home.",
+        "fr": "État et débits internet, Wi-Fi invités avec son bouton, et qui est à la maison.",
+        "de": "Internetstatus und Datenraten, Gast-WLAN mit Schaltfläche und wer zu Hause ist.",
+        "es": "Estado y velocidad de internet, Wi-Fi de invitados con su botón y quién está en casa."
+      },
+      "icon": "wifi",
+      "action_timeout_seconds": 30,
+      "settings": [
+        {
+          "key": "devices",
+          "type": "multi_select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Devices shown",
+            "fr": "Appareils affichés",
+            "de": "Angezeigte Geräte",
+            "es": "Dispositivos mostrados"
+          },
+          "description": {
+            "en": "Network devices to show as home or away. Empty: every one you added.",
+            "fr": "Appareils réseau à afficher présents ou absents. Vide : tous ceux que vous avez ajoutés.",
+            "de": "Netzwerkgeräte, die als zu Hause oder abwesend angezeigt werden. Leer: alle hinzugefügten.",
+            "es": "Dispositivos de red que se muestran en casa o fuera. Vacío: todos los que ha añadido."
+          }
+        }
+      ]
     }
   ]
 }

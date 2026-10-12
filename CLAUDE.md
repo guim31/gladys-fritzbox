@@ -16,12 +16,12 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "guest"   # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
-npx github:GladysAssistant/integration-store .   # store admission checks
+npx github:GladysAssistant/integration-store --skip-image-check .   # store admission checks
 ```
 
 The CI (`.github/workflows/ci.yml`) runs `format:check`, `lint` and `test` on
@@ -31,16 +31,27 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: registerHandlers() then connect()
+src/app.js                        every SDK handler -> hub; configuration action
+src/hub.js                        connection, read cycle, states, presence, scene events, commands
+src/fritz/client.js               TR-064 client: descriptions, SOAP, Digest, typed errors (kind)
+src/fritz/digest.js               HTTP Digest (RFC 2617), tested on the RFC vector
+src/fritz/http.js                 the one place that opens HTTP connections (test seam)
+src/fritz/box.js                  what is read and changed on the box (actions of fritzconnection/HA)
+src/fritz/callmonitor.js          call monitor (TCP 1012): parser, call tracker, reconnecting socket
+src/fritz/phonebook.js            phone books, number matching
+src/discovery.js                  SSDP answers relayed by the core
+src/devices.js                    Gladys devices (box, network devices), names in 4 languages
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
 src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/messages.js                   texts sent from the container (en, fr, de, es)
+src/store.js                      /data/state.json (atomic, coalesced writes)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+gladys-assistant-integration.json manifest: name, config_schema, actions, scenes, widget...
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+test/helpers/fakeFritz.js         simulated FRITZ!Box (Digest, SOAP, faults, host list, call monitor)
+test/helpers/world.js             fake Gladys + simulated box + manual clock + temporary /data
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +81,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, manifest texts, widget texts, feature names, and
+  `docs/{en,fr,de,es}.md`, kept in sync (`test/i18n.test.js` checks it).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -211,3 +223,38 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Fichier `LICENSE` Apache-2.0 (texte complet) à la racine.
 - `transports` : `local` seul quand le cloud n'est qu'une option annexe.
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
+
+## FRITZ!Box : API et pièges (12/10/2026, sans le matériel)
+
+- **TR-064** : SOAP sur HTTP, port 49000 (HTTPS 49443, certificat auto-signé non vérifié, comme
+  fritzconnection et HA). `tr64desc.xml` n'est servi que si « Autoriser l'accès pour des
+  applications » est coché (404 sinon : erreur `disabled`). `igddesc.xml` (UPnP IGD, **sans
+  authentification**) n'est servi que si « Transmettre les informations d'état par UPnP » est
+  coché : c'est de là que viennent les débits actuels (`WANCommonIFC1.GetAddonInfos`, en octets/s),
+  comme dans HA. Ne jamais supposer les URL de contrôle : les lire dans les descriptions.
+- **Digest** : la box répond 401 avec un défi `qop="auth"` ; le client rejoue avec le même nonce et
+  `nc` croissant, et refait un défi sur un 401 (nonce expiré). **Deux 401 de suite = mauvais
+  identifiants** : on arrête tout 15 minutes (la box bloque les connexions de plus en plus longtemps
+  après des échecs). Le test `client.test.js` vérifie qu'un mauvais mot de passe ne coûte qu'un échec.
+- **Erreurs SOAP** : HTTP 500 + `UPnPError/errorCode`. 606 = droit manquant (avertissement, le reste
+  continue), 401 = action inconnue, 714 = entrée inconnue, 707 = reconnexion déjà en cours (ignoré).
+- **Service de connexion** : `Layer3Forwarding1.GetDefaultConnectionService` donne
+  `1.WANPPPConnection.1` (DSL) ou `1.WANIPConnection.1` (câble, fibre) → `WANPPPConnection1`.
+  Absent sur une box en répéteur ou client IP : pas de fonctionnalités internet. Une box sans
+  internet ni Wi-Fi invités n'est pas proposée (appareil sans fonctionnalité).
+- **Wi-Fi invités** = le dernier `WLANConfigurationN` d'une box qui en a au moins deux (règle de
+  fritzconnection et HA). Non vérifié sur les box à 4 réseaux Wi-Fi (6 GHz) autrement que par HA.
+- **Identité** : `DeviceInfo1.GetInfo` → `NewSerialNumber` (la MAC de la box) ; à défaut la fin de
+  l'UDN de `tr64desc.xml`. L'id retenu est mémorisé dans `/data`.
+- **Hôtes** : `Hosts1.X_AVM-DE_GetHostListPath` donne un chemin `devicehostlist.lua?sid=…` à lire
+  par GET sur le même port (FRITZ!OS ≥ 7.10) ; repli `GetGenericHostEntry` par index. Les liens que
+  la box renvoie (hôtes, annuaire) contiennent `fritz.box` : on ne garde que chemin et requête.
+- **Découverte** : SSDP médié sur `urn:dslforum-org:device:InternetGatewayDevice:1` ; la réponse
+  pointe `tr64desc.xml` sur le port 49000. L'en-tête `SERVER` (« … UPnP/1.0 AVM FRITZ!Box 7590
+  154.07.29 ») sert à préférer la box à un répéteur. Fixture SSDP composée (pas de capture réelle).
+- **Moniteur d'appels** : TCP 1012, lignes `date;RING|CALL|CONNECT|DISCONNECT;id;…`. Les postes 40
+  à 49 sont les répondeurs (hypothèse : appel « manqué » même s'il a été pris par le répondeur). Ne
+  jamais journaliser numéros ni noms (test dédié dans `hub.test.js`).
+- **Capteur « Internet »** : `input/binary` (On/Off). `presence-sensor/binary` afficherait
+  « Présence détectée » pour une connexion internet.
+- **`text/text`** (IP externe) : publié en `{ text }`, `min`/`max` à 0/0, jamais vide.

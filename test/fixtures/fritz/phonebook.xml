@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<phonebooks>
+<phonebook owner="1" name="Telefonbuch">
+<timestamp>1696000000</timestamp>
+<contact>
+<category>0</category>
+<person>
+<realName>Oma &amp; Opa</realName>
+</person>
+<uniqueid>1</uniqueid>
+<telephony nid="2">
+<number type="home" prio="1" id="0">030 1234567</number>
+<number type="mobile" prio="0" id="1">+49 170 7654321</number>
+</telephony>
+</contact>
+<contact>
+<category>1</category>
+<person>
+<realName>Praxis Dr. Muster</realName>
+</person>
+<uniqueid>2</uniqueid>
+<telephony nid="1">
+<number type="work" prio="1" id="0">0049 89 9876543</number>
+</telephony>
+</contact>
+<contact>
+<category>0</category>
+<person>
+<realName>No number</realName>
+</person>
+<uniqueid>3</uniqueid>
+<telephony nid="0"></telephony>
+</contact>
+</phonebook>
+</phonebooks>
