@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-12
+
 ### Added
 
 - A **FRITZ!Box** device: internet connection (on/off), current download and
@@ -36,4 +38,5 @@ the notes of the version's GitHub Release.
   names in French by default (setting **Language of the feature names**).
 - Apache-2.0 `LICENSE` file.
 
-[Unreleased]: https://github.com/guim31/gladys-fritzbox/commits/main
+[Unreleased]: https://github.com/guim31/gladys-fritzbox/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-fritzbox/releases/tag/v1.0.0
