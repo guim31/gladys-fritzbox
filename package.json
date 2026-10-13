@@ -1,6 +1,6 @@
 {
   "name": "gladys-fritzbox",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "AVM FRITZ!Box integration for Gladys Assistant: internet status, guest Wi-Fi, presence and calls, over TR-064.",
   "type": "module",
