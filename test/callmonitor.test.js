@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CallMonitor, CallTracker, parseLine } from '../src/fritz/callmonitor.js';
 import { createFakeFritz, fixture } from './helpers/fakeFritz.js';
+import { captureLogs } from './helpers/logs.js';
 
 const LINES = fixture('callmonitor.txt').trim().split('\n');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -145,4 +146,47 @@ test('the monitor reads lines split anywhere, and reconnects with a growing dela
   monitor.stop();
   await flush();
   assert.equal(fake.sockets.length, 0);
+});
+
+test('the monitor logs a failure and a loss once, not at every reconnection attempt', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const lines = captureLogs(t, 'info');
+  const fake = createFakeFritz();
+  fake.callMonitor = false;
+  const monitor = new CallMonitor({
+    host: fake.host,
+    connect: fake.connectSocket,
+    onLine: () => {},
+    delays: { minMs: 1000, maxMs: 1000 },
+  });
+  t.after(() => monitor.stop());
+  monitor.start();
+  for (let i = 0; i < 4; i += 1) {
+    await flush();
+    await flush();
+    t.mock.timers.tick(1000);
+  }
+  fake.callMonitor = true;
+  await flush();
+  await flush();
+  assert.deepEqual(lines, [
+    '[WARN] [fritzbox-calls] Call monitor unavailable (ECONNREFUSED)',
+    `[INFO] [fritzbox-calls] Call monitor connected (${fake.host}:1012)`,
+  ]);
+
+  lines.length = 0;
+  fake.sockets[0].destroy();
+  fake.callMonitor = false;
+  for (let i = 0; i < 4; i += 1) {
+    await flush();
+    await flush();
+    t.mock.timers.tick(1000);
+  }
+  fake.callMonitor = true;
+  await flush();
+  await flush();
+  assert.deepEqual(lines, [
+    '[WARN] [fritzbox-calls] Call monitor connection lost',
+    `[INFO] [fritzbox-calls] Call monitor connected (${fake.host}:1012)`,
+  ]);
 });

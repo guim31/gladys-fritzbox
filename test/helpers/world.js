@@ -48,6 +48,7 @@ export const flush = () => new Promise((resolve) => setImmediate(resolve));
  * @param {object} [options.saved] content of /data/state.json before the start
  * @param {Array|null} [options.ssdp] raw SSDP results, null: no capture declared
  * @param {boolean} [options.connect]
+ * @param {boolean} [options.timers] true: the hub's own read timer runs (tests mock it)
  */
 export async function createWorld({
   config = CONFIG,
@@ -56,6 +57,7 @@ export async function createWorld({
   saved,
   ssdp = SSDP_RESULTS,
   connect = true,
+  timers = false,
   dataDir = mkdtempSync(join(tmpdir(), 'gladys-fritzbox-')),
 } = {}) {
   const box = typeof fritz.request === 'function' ? fritz : createFakeFritz(fritz);
@@ -74,7 +76,7 @@ export async function createWorld({
     store,
     request: box.request,
     connectSocket: box.connectSocket,
-    timers: false,
+    timers,
     now: clock.now,
     sleep: clock.sleep,
   });
