@@ -20,6 +20,7 @@ import {
   featureId,
   flush,
 } from './helpers/world.js';
+import { captureLogs } from './helpers/logs.js';
 
 async function worldWithBox(t, options = {}) {
   const world = await createWorld(options);
@@ -433,4 +434,95 @@ test('the logs never show the password, the phone numbers or the names', async (
   for (const secret of [PASSWORD, '01707654321', '089123456', 'Oma', 'guest-1234-5678']) {
     assert.ok(!text.includes(secret), `"${secret}" is in the logs`);
   }
+});
+
+test('the hub reads the box on its own timer: no poll from Gladys is needed', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const world = await worldWithBox(t, { timers: true });
+  assert.equal(world.device.should_poll, false);
+  world.box.connected = false;
+  t.mock.timers.tick(30_000); // poll_interval: 30 s by default
+  await world.hub.running;
+  assert.equal(state(world, world.device, 'internet'), 0);
+});
+
+test('a normal read cycle writes nothing at the info level', async (t) => {
+  const world = await worldWithBox(t, { config: { ...CONFIG, call_monitor: true } });
+  await flush();
+  const lines = captureLogs(t, 'info');
+  for (let i = 0; i < 5; i += 1) {
+    world.clock.advance(30_000);
+    world.box.download = 125_000 * (i + 1);
+    await world.hub.cycle();
+  }
+  assert.ok(world.fake.states.length > 0);
+  assert.deepEqual(lines, []);
+});
+
+test('a repeated failure writes one line when it starts and one when it ends', async (t) => {
+  const world = await worldWithBox(t);
+  const lines = captureLogs(t, 'info');
+  world.box.reachable = false;
+  for (let i = 0; i < 5; i += 1) {
+    await world.hub.cycle();
+  }
+  assert.equal(lines.length, 1, lines.join('\n'));
+  assert.match(lines[0], /^\[WARN\] \[fritzbox\] Reading the FRITZ!Box failed/);
+  world.box.reachable = true;
+  await world.hub.cycle();
+  await world.hub.cycle();
+  assert.deepEqual(lines.slice(1), ['[INFO] [fritzbox] Reading the FRITZ!Box works again']);
+
+  // Gladys refusing the states at every cycle: the same.
+  lines.length = 0;
+  const publish = world.gladys.publishChangedStates;
+  world.gladys.publishChangedStates = async () => {
+    throw new Error('HTTP 500');
+  };
+  for (let i = 0; i < 3; i += 1) {
+    world.box.uptime += 60;
+    await world.hub.cycle();
+  }
+  world.gladys.publishChangedStates = publish;
+  world.box.uptime += 60;
+  await world.hub.cycle();
+  assert.deepEqual(lines, [
+    '[WARN] [fritzbox] Publishing the states failed: HTTP 500',
+    '[INFO] [fritzbox] Gladys accepts the states again',
+  ]);
+});
+
+test('no address, no network search, no box: one line each, not one per cycle', async (t) => {
+  const lines = captureLogs(t, 'info');
+  const world = await createWorld({
+    config: { ...CONFIG, host: '' },
+    fritz: { reachable: false },
+    connect: false,
+  });
+  t.after(() => world.app.stop());
+  // An older core refuses the network search (403).
+  const scanNetwork = world.gladys.scanNetwork;
+  world.gladys.scanNetwork = async () => {
+    throw new Error('HTTP 403');
+  };
+  await world.gladys.connect();
+  await world.app.ready;
+  await world.hub.running;
+  for (let i = 0; i < 4; i += 1) {
+    await world.hub.cycle();
+  }
+  assert.deepEqual(
+    lines.filter((line) => line.includes('[fritzbox]')),
+    [
+      '[WARN] [fritzbox] Network search unavailable: HTTP 403',
+      '[WARN] [fritzbox] Cannot connect to the FRITZ!Box: fritz.box: ECONNREFUSED',
+    ],
+  );
+
+  // The search works and the box answers: one line, the first connection.
+  world.gladys.scanNetwork = scanNetwork;
+  world.box.reachable = true;
+  await world.hub.cycle();
+  assert.match(lines.at(-1), /^\[INFO\] \[fritzbox\] Connected to FRITZ!Box/);
+  assert.equal(lines.length, 3, lines.join('\n'));
 });

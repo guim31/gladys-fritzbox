@@ -21,8 +21,10 @@
 
 import net from 'node:net';
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { ProblemLog } from '../problems.js';
 
 const logger = createLogger({ name: 'fritzbox-calls' });
+const LOST = 'Call monitor connection lost';
 
 export const CALL_MONITOR_PORT = 1012;
 export const TRIGGERS = {
@@ -182,6 +184,10 @@ export class CallMonitor {
     this.timer = null;
     this.stopped = false;
     this.state = null;
+    // One line when the socket fails or drops, one when it is back: never
+    // one per reconnection attempt.
+    this.problems = new ProblemLog(logger);
+    this.announced = false;
   }
 
   start() {
@@ -217,7 +223,13 @@ export class CallMonitor {
     socket.on('connect', () => {
       opened = true;
       this.delay = this.minDelay;
-      logger.info(`Call monitor connected (${this.host}:${this.port})`);
+      const line = `Call monitor connected (${this.host}:${this.port})`;
+      if (this.problems.recover('socket') || !this.announced) {
+        logger.info(line);
+      } else {
+        logger.debug(line);
+      }
+      this.announced = true;
       this.setState('connected');
     });
     socket.on('data', (chunk) => {
@@ -236,7 +248,13 @@ export class CallMonitor {
     });
     socket.on('error', (err) => {
       if (!opened) {
-        logger.warn(`Call monitor unavailable (${err.code ?? err.message})`);
+        const message = `Call monitor unavailable (${err.code ?? err.message})`;
+        if (this.problems.active.get('socket') === LOST) {
+          // The loss was said; the failed attempts that follow are details.
+          logger.debug(message);
+        } else {
+          this.problems.fail('socket', message);
+        }
         this.setState(err.code === 'ECONNREFUSED' ? 'refused' : 'lost');
       }
     });
@@ -246,7 +264,7 @@ export class CallMonitor {
       }
       this.socket = null;
       if (opened) {
-        logger.warn('Call monitor connection lost');
+        this.problems.fail('socket', LOST);
         this.setState('lost');
       }
       this.timer = setTimeout(() => this.open(), this.delay);

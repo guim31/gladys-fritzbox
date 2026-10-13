@@ -46,6 +46,7 @@ src/scenes.js                     scene action handlers (manifest `scene_actions
 src/widgets.js                    dashboard widget handlers (manifest `widgets`)
 src/messages.js                   texts sent from the container (en, fr, de, es)
 src/store.js                      /data/state.json (atomic, coalesced writes)
+src/problems.js                   repeated failures logged once when they start, once when they end
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
 gladys-assistant-integration.json manifest: name, config_schema, actions, scenes, widget...
 docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
@@ -120,7 +121,15 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
   `poll_frequency` vaut une valeur de la liste fixe, **en millisecondes** (1000, 2000, 10000,
   15000, 30000, 60000). Le template publie `poll_frequency: 300` sans `should_poll` : c'est faux,
   le cœur répond 400 à la découverte. Pour une cadence hors liste, publier `should_poll: false` et
-  pousser les états depuis le conteneur, en gardant un `onPoll` de repli.
+  pousser les états depuis le conteneur, en gardant un `onPoll` de repli. Issue
+  GladysAssistant/Gladys#3198 (correctif #3199 non publié) : les appareils déjà créés sans
+  `should_poll` ne seront jamais sondés, même après correction : ne jamais dépendre du seul
+  `onPoll` (ici, minuteur interne du hub, vérifié par un test de `hub.test.js`).
+- **Logs** : le niveau info ne montre que le cycle de vie (démarrage, connexion, perte et retour de
+  la box ou du moniteur d'appels, une ligne par action de l'utilisateur, erreurs utiles). Les
+  erreurs répétées à chaque cycle ou tentative passent par `src/problems.js` (`ProblemLog` : une
+  ligne au début ou au changement du message, une au retour, `debug` entre les deux).
+  `LOG_LEVEL=debug` donne le détail. Des tests vérifient qu'un cycle normal n'écrit rien en info.
 - **`min` et `max` sont NOT NULL** dans `t_device_feature`, y compris pour `text/text` : sans eux,
   « Ajouter à Gladys » échoue en HTTP 422. Mettre 0/0, comme Zigbee2MQTT.
 - Un état publié sur une fonctionnalité **pas encore ajoutée** dans Gladys reçoit un 200 puis est

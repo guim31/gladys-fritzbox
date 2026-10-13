@@ -10,6 +10,15 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+### Changed
+
+- Quieter logs: a box that does not answer, a network search the Gladys
+  version refuses, a missing right on the box, states Gladys refuses or a call
+  monitor that cannot connect now write one line when the problem starts and
+  one when it is over, instead of a line at every read or reconnection
+  attempt. The connection to the box is logged at the start and when it comes
+  back after a loss.
+
 ## [1.0.0] - 2026-10-12
 
 ### Added

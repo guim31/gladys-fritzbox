@@ -18,6 +18,7 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 import { FritzBox } from './fritz/box.js';
 import { CallMonitor, CallTracker } from './fritz/callmonitor.js';
 import { createLookup } from './fritz/phonebook.js';
+import { ProblemLog } from './problems.js';
 import {
   boxIds,
   boxIdOfDevice,
@@ -87,6 +88,9 @@ export class Hub {
     this.saved = {};
     this.box = null;
     this.problem = null;
+    // Failures repeated at every cycle are logged when they start and end.
+    this.problems = new ProblemLog(logger);
+    this.announced = false;
     this.warnings = new Set();
     this.lastStatusSent = null;
     this.authBlockedUntil = 0;
@@ -139,6 +143,7 @@ export class Hub {
     const access = (c) => [c.host, c.username, c.password, c.https].join('\u0000');
     if (!previous || access(previous) !== access(config)) {
       this.box = null;
+      this.announced = false;
       this.authBlockedUntil = 0;
       await this.connectBox();
       await this.refreshHosts().catch(() => {});
@@ -220,7 +225,15 @@ export class Hub {
           boxId: box.info.id,
         });
       }
-      logger.info(`Connected to ${box.info.model} (FRITZ!OS ${box.info.firmware ?? '?'})`);
+      // Said at the start and when the box is back, not at every reconnection.
+      const lost = [this.problems.recover('connect'), this.problems.recover('read')].some(Boolean);
+      const line = `Connected to ${box.info.model} (FRITZ!OS ${box.info.firmware ?? '?'})`;
+      if (lost || !this.announced) {
+        logger.info(line);
+      } else {
+        logger.debug(line);
+      }
+      this.announced = true;
       return true;
     }
     this.box = null;
@@ -228,7 +241,10 @@ export class Hub {
     if (this.problem === 'auth') {
       this.authBlockedUntil = this.now() + this.timings.authRetryMs;
     }
-    logger.warn(`Cannot connect to the FRITZ!Box: ${lastError?.message ?? 'no address'}`);
+    this.problems.fail(
+      'connect',
+      `Cannot connect to the FRITZ!Box: ${lastError?.message ?? 'no address'}`,
+    );
     return false;
   }
 
@@ -262,9 +278,10 @@ export class Hub {
       const results = await this.gladys.scanNetwork('ssdp', {
         timeoutSeconds: SCAN_TIMEOUT_SECONDS,
       });
+      this.problems.recover('search');
       return boxCandidates(results);
     } catch (err) {
-      logger.warn(`Network search unavailable: ${err.message}`);
+      this.problems.fail('search', `Network search unavailable: ${err.message}`);
       return [];
     }
   }
@@ -331,7 +348,7 @@ export class Hub {
     } else if (err.kind === 'fault' && err.code === 606) {
       this.warnings.add('rights');
     }
-    logger.warn(`Reading the FRITZ!Box failed: ${err.message}`);
+    this.problems.fail('read', `Reading the FRITZ!Box failed: ${err.message}`);
     await this.sendStatus();
   }
 
@@ -433,7 +450,12 @@ export class Hub {
       return this.running;
     }
     this.running = this.cycle()
-      .catch((err) => logger.error('Read cycle failed', err))
+      .then(() => this.problems.recover('cycle'))
+      .catch((err) => {
+        if (this.problems.fail('cycle', `Read cycle failed: ${err.message}`, 'error')) {
+          logger.debug('Read cycle failed', err);
+        }
+      })
       .finally(() => {
         this.running = null;
       });
@@ -455,9 +477,10 @@ export class Hub {
     const box = this.box;
     // A part the box refuses (a missing right, an unknown action) leaves the
     // others alone; a refused login or a silent box stops the cycle.
-    const part = async (fn) => {
+    const part = async (key, fn) => {
       try {
         await fn();
+        this.problems.recover(`part:${key}`);
         return true;
       } catch (err) {
         if (err.kind === 'auth' || err.kind === 'unreachable') {
@@ -466,22 +489,24 @@ export class Hub {
         if (err.kind === 'fault' && err.code === 606) {
           this.warnings.add('rights');
         }
-        logger.warn(`Reading the FRITZ!Box: ${err.message}`);
+        // A missing right fails again at every cycle until the user fixes it.
+        this.problems.fail(`part:${key}`, `Reading the FRITZ!Box: ${err.message}`);
         return false;
       }
     };
     // Missing rights are noticed again at every cycle (the user may fix them).
     this.warnings.delete('rights');
     try {
-      await part(async () => this.applyStatus(await box.readStatus()));
-      await part(async () => this.applyGuest(await box.readGuestWifi()));
+      await part('status', async () => this.applyStatus(await box.readStatus()));
+      await part('guest', async () => this.applyGuest(await box.readGuestWifi()));
       if (this.createdMacs().length > 0) {
-        await part(async () => {
+        await part('hosts', async () => {
           await this.refreshHosts();
           this.updatePresence();
         });
       }
       this.problem = null;
+      this.problems.recover('read', 'Reading the FRITZ!Box works again');
     } catch (err) {
       await this.noteFailure(err);
       return;
@@ -594,9 +619,10 @@ export class Hub {
     }
     try {
       await this.gladys.publishChangedStates(states, { heartbeat: this.timings.heartbeatMs });
+      this.problems.recover('publish', 'Gladys accepts the states again');
     } catch (err) {
       // Sent again at the next cycle (the SDK forgets what Gladys refused).
-      logger.warn(`Publishing the states failed: ${err.message}`);
+      this.problems.fail('publish', `Publishing the states failed: ${err.message}`);
     }
   }
 
@@ -874,10 +900,12 @@ export class Hub {
     this.phonebookAt = this.now();
     try {
       this.lookup = createLookup(await this.box.readPhonebook());
+      this.problems.recover('phonebook');
     } catch (err) {
       // Reading the phone books needs the "Voice messages, fax messages,
-      // FRITZ!App Fon and call list" right: without it, numbers only.
-      logger.warn(`Phone books unavailable: ${err.message}`);
+      // FRITZ!App Fon and call list" right: without it, numbers only (tried
+      // again every 6 hours and at every restart of the call monitor).
+      this.problems.fail('phonebook', `Phone books unavailable: ${err.message}`);
     }
   }
 
